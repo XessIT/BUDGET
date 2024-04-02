@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 
 import 'DashBoard.dart';
@@ -22,45 +21,10 @@ class _BalanceState extends State<Balance> {
   @override
   void initState() {
     super.initState();
-    fetchAllMonthEndRemaining();
   }
 
 
-  Future<void> fetchAllMonthEndRemaining() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    Set<String> keys = prefs.getKeys();
-    List<Map<String, dynamic>> fetchedTrips = [];
-    double totalRemainingValue = 0; // Initialize total to 0
 
-    for (String key in keys) {
-      if (key.endsWith(':monthendRemaining')) {
-        String monthId = key.split(':')[0];
-        String? remainingValue = prefs.getString(key);
-        String? fromDate = prefs.getString('$monthId:fromDate');
-        String? toDate = prefs.getString('$monthId:toDate');
-        if (remainingValue != null && fromDate != null && toDate != null) {
-          // Extract numeric part of the string using regular expression
-          RegExp regExp = RegExp(r'(\d+(\.\d+)?)');
-          Iterable<Match> matches = regExp.allMatches(remainingValue);
-          double value = double.parse(matches.first.group(0)!);
-          fetchedTrips.add({
-            'monthId': monthId,
-            'remainingValue': remainingValue,
-            'fromDate': fromDate,
-            'toDate': toDate,
-          });
-          // Add the remaining value to the total
-          totalRemainingValue += value;
-        }
-      }
-    }
-
-    // Update state with fetched data
-    setState(() {
-      trips = fetchedTrips;
-      print('Total Remaining Value: ₹${totalRemainingValue.toStringAsFixed(2)}'); // Print the total remaining value
-    });
-  }
 
 
 

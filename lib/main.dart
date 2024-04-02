@@ -3,8 +3,8 @@ import 'package:get/get.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:hive/hive.dart';
 import 'package:hive_flutter/adapters.dart';
+import 'package:mybudget/remainingProvider.dart';
 import 'package:mybudget/sample.dart';
 import 'DashBoard.dart';
 import 'boxes.dart';
@@ -12,7 +12,7 @@ import 'expense_model.dart';
 import 'home.dart';
 import 'langString.dart';
 import 'login.dart';
-
+import 'package:provider/provider.dart';
 
 
 Future<void> main() async {
@@ -21,7 +21,12 @@ Future<void> main() async {
   Hive.registerAdapter(ExpenseAdapter());
   MonthlyExpenses = await Hive.openBox<Person>('PersonBox');
   await GetStorage.init();
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => RemainingAmountProvider(),
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {

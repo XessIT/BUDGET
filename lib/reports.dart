@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:mybudget/monthlyReport.dart';
 import 'package:mybudget/tripReport.dart';
 
+import 'TripView.dart';
 import 'dailyReport.dart';
 
 //import 'monthlyReport.dart';
 
 class Reports extends StatelessWidget {
-  const Reports({Key? key}) : super(key: key);
+  final String uid;
+  const Reports({Key? key, required  this.uid}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -37,10 +39,10 @@ class Reports extends StatelessWidget {
             child: Column(
               children: [
                 _buildClickableContainer('assets/Family Budget 2 (1).jpg',
-                    'Monthly Budget', context, MonthlyReportPage()),
+                    'Monthly Budget', context, MonthlyReportPage(uid: uid)),
                 const SizedBox(height: 10),
                 _buildClickableContainer('assets/Trip Budget.jpg',
-                    'Trip Budget', context, TripBudgetReportPage()),
+                    'Trip Budget', context, ViewDataPage()),
                 const SizedBox(height: 10),
                 _buildClickableContainer('assets/quick budget2.jpg',
                     'Personal Budget', context, PersonalBudgetPage()),

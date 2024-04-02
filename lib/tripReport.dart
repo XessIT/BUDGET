@@ -1,95 +1,683 @@
+import 'dart:convert';
 import 'dart:ui';
-
+import 'package:flutter/cupertino.dart';
+import 'package:http/http.dart'as http;
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:mybudget/DashBoard.dart';
 import 'package:mybudget/reports.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:glass_kit/glass_kit.dart';
+import 'TripView.dart';
 
 class TripBudgetReportPage extends StatefulWidget {
+  final String tripid;
+  final String tripname;
+  final String id;
+  const TripBudgetReportPage({super.key, required this.tripid, required this.tripname, required this.id});
+
   @override
   _TripBudgetReportPageState createState() => _TripBudgetReportPageState();
 }
 
 class _TripBudgetReportPageState extends State<TripBudgetReportPage> {
   List<String> reportIds = [];
+  List<Map<String, dynamic>> trips = [];
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  List<Map<String, dynamic>> tripData = []; // Change the type to a list of maps
+  Map<String, dynamic> trip = {};
+  List<Map> combineData = [];
+  String getValue ="";
+  Future<void> fetchTCombine() async {
+    try {
+      final url = Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/Trip.php?table=combine_table&uid=${widget.id}&trip_id=${widget.tripid}');
+      final response = await http.get(url);
+      print("id fetch URL: $url");
+
+      if (response.statusCode == 200) {
+        print("response.statusCode: ${response.statusCode}");
+        print("response.body: ${response.body}");
+
+        // Check if the response is JSON
+        if (response.headers['content-type'] == 'application/json') {
+          final responseData = json.decode(response.body);
+
+          if (responseData is List<dynamic>) {
+            setState(() {
+
+              getValue=responseData[0]["trip_type"];
+
+
+              // print("compine table:$");
+            });
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Invalid response data format"),
+              ),
+            );
+            print('Invalid response data format');
+          }
+        } else {
+          // Handle non-JSON response
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Unexpected response format"),
+            ),
+          );
+          print('Unexpected response format');
+        }
+      } else {
+        // Handle non-200 status code
+        print('Error: ${response.statusCode}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error: ${response.statusCode}"),
+          ),
+        );
+      }
+    } catch (error) {
+      // Handle other errors
+      print('Error: $error');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error: $error"),
+        ),
+      );
+    }
+  }
+
+
+  String tripType ="";
+  String tripName ="";
+  String source ="";
+  String fromDate ="";
+  String toDate ="";
+  double totalBudget =0.0;
+  String noOfPersonController ="";
+  List<double> balanceAMt =[];
+
+
+  List<Map<String,dynamic>>creationData =[];
+  Future<void> fetchTCreation() async {
+    try {
+      print("trip Id:${widget.tripid}");
+      print("Id:${widget.id}");
+      final url = Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/Trip.php?table=trip_creation&uid=${widget.id}&trip_id=${widget.tripid}');
+      final response = await http.get(url);
+      print("id fetch Creation URL :$url" );
+      print("C response.statusCode :${response.statusCode}" );
+      print("C response .body :${response.body}" );
+      if (response.statusCode == 200) {
+        print("response.statusCode :${response.statusCode}" );
+        print("response .body :${response.body}" );
+        final responseData = json.decode(response.body);
+        final parsedNoOfPersonController = int.tryParse(noOfPersonController.toString());
+
+
+
+        if (responseData is List<dynamic>) {
+          setState(() {
+            creationData = responseData.cast<Map<String, dynamic>>();
+            if (creationData.isNotEmpty) {
+              setState(() {
+                tripType = creationData[0]["trip_type"];
+                tripName = creationData[0]["trip_name"];
+                source = creationData[0]["location"];
+                fromDate = creationData[0]["from_date"];
+                toDate = creationData[0]["to_date"];
+                totalBudget= double.tryParse(creationData[0]["budget"])??0.0;
+                noOfPersonController = creationData[0]["members"];
+
+                print("Trip_creation data--$creationData" );
+
+              });
+            }
+          });
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("This mobile number is not member. Enter the member mobile number."),
+            ),
+          );
+          //    referreridcotroller.clear();
+          print('Invalid response data format');
+        }
+      } else {
+        // Handle non-200 status code
+        print('Error: ${response.statusCode}');
+      }
+    } catch (error) {
+      // Handle other errors
+      print('Error: $error');
+    }
+  }
+  List<Map<String,dynamic>>membersData=[];
+  double values =0.0;
+  String? returnvalue ="Return";
+  String? balancevalue ="Balance";
+  Future<void> fetchTMembers() async {
+    try {
+      print("trip Id:${widget.tripid}");
+      final url = Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/Trip.php?table=trip_members&trip_id=${widget.tripid}');
+      final response = await http.get(url);
+      print("id members URL :$url");
+      print("M response.statusCode :${response.statusCode}");
+      print("M response .body :${response.body}");
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        double totalAmounts = 0.0; // Initialize total amount
+        for (var i = 0; i < responseData.length; i++) {
+          double amount = double.tryParse('${responseData[i]["amount"]}') ?? 0;
+          totalAmounts += amount;
+
+        }
+
+        if (responseData is List<dynamic>) {
+          setState(() {
+            membersData = responseData.cast<Map<String, dynamic>>();
+            creationtotal = totalAmounts;
+
+
+
+
+          });
+        } else {
+          print('Invalid response data format');
+        }
+      } else {
+        // Handle non-200 status code
+        print('Error: ${response.statusCode}');
+      }
+    } catch (error) {
+      // Handle other errors
+      print('Error: $error');
+    }
+  }
+  List<Map<String,dynamic>>spentData=[];
+  Future<void> fetchTSpent() async {
+    try {
+      print("trip Id:${widget.tripid}");
+      final url = Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/Trip.php?table=trip_spent&trip_id=${widget.tripid}');
+      final response = await http.get(url);
+      print("id spent URL :$url");
+      print("S response.statusCode :${response.statusCode}");
+      print("S response .body :${response.body}");
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        double spentAmounts = 0.0; // Initialize total amount
+        for (var i = 0; i < responseData.length; i++) {
+          double amount = double.tryParse('${responseData[i]["amount"]}') ?? 0;
+          spentAmounts += amount;
+        }
+        if (responseData is List<dynamic>) {
+          setState(() {
+            spentData = responseData.cast<Map<String, dynamic>>();
+            print("spent data$spentData");
+            if(spentData.isNotEmpty){
+              spenttotal =spentAmounts;}
+          });
+        } else {
+          print('Invalid response data format');
+        }
+      } else {
+        // Handle non-200 status code
+        print('Error: ${response.statusCode}');
+      }
+    } catch (error) {
+      // Handle other errors
+      print('Error: $error');
+    }
+  }
+  /* double totalAmountPerson = 0.0;
+  double receivedAmt = 0.0;
+  double valueget3=0.0;*/
+/*
+  double getReceivedAmt() {
+    double valueget = 0.0;
+    for (var mData in membersData) {
+      double amount = double.tryParse(mData['amount']) ?? 0.0;
+      valueget += amount;
+      setState(() {
+        receivedAmt =valueget;
+        print("MData $receivedAmt??--00");
+      });
+    }
+    return receivedAmt;
+  }
+*/
+
+
+  List<Map<String, dynamic>> combinedData = [];
+
+  Future<void> fetchData() async {
+    try {
+      await fetchTCreation();
+      await fetchTMembers();
+      await fetchTSpent();
+
+      // Combine the data
+      setState(() {
+        combinedData.clear();
+        combinedData.addAll(creationData);
+        combinedData.addAll(membersData);
+        combinedData.addAll(spentData);
+      });
+
+      print("Combined Data: $combinedData");
+    } catch (error) {
+      print('Error fetching data: $error');
+    }
+  }
+  int index = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadReportIds();
+    fetchData();
+    fetchTMembers();
+    fetchTCreation();
+    fetchTSpent();
+   // _loadReportIds();
   }
 
-  Future<void> _loadReportIds() async {
+  /*Future<void> _loadReportIds() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       reportIds = prefs.getStringList('reportIds') ?? [];
     });
-  }
-
+  }*/
+  double creationtotal = 0.0;
+  double spenttotal = 0.0;
+  double valueget2 = 0.0;
+  double spendPerHead =0.0;
+  double remainingAmount =0.0;
   @override
   Widget build(BuildContext context) {
+    spentData.sort((a, b) => DateTime.parse(a["date"]).compareTo(DateTime.parse(b["date"])));
+    spendPerHead = spenttotal /int.parse(noOfPersonController);
+    remainingAmount = creationtotal - spenttotal;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          "Trip Budget Reports",
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        leading: IconButton(
-          icon: const Icon(
-            Icons.navigate_before,
-            color: Colors.white,
+        appBar: AppBar(
+          title: Text(
+            "Trip Budget Reports",
+            style: Theme.of(context).textTheme.titleMedium,
           ),
-          onPressed: () {
-            Navigator.push(
-                context, MaterialPageRoute(builder: (context) => Reports()));
-          },
-        ),
-        titleSpacing: 00.0,
-        centerTitle: true,
-        toolbarHeight: 60.2,
-        toolbarOpacity: 0.8,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.only(
-            bottomRight: Radius.circular(25),
-            bottomLeft: Radius.circular(25),
-          ),
-        ),
-        elevation: 0.00,
-        backgroundColor: Color(0xFF8155BA),
-      ),
-      body: ListView.builder(
-        itemCount: reportIds.length,
-        itemBuilder: (context, index) {
-          return FutureBuilder<Map<String, dynamic>>(
-            future: _getReportData(reportIds[index]),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return Center(child: CircularProgressIndicator());
-              }
-              if (snapshot.hasError) {
-                return Center(child: Text('Error: ${snapshot.error}'));
-              }
-              return _buildReportCard(snapshot.data!, context);
+          leading: IconButton(
+            icon: const Icon(
+              Icons.navigate_before,
+              color: Colors.white,
+            ),
+            onPressed: () {
+              Navigator.push(
+                  context, MaterialPageRoute(builder: (context) => Reports(uid: '',)));
             },
-          );
-        },
-      ),
+          ),
+          titleSpacing: 00.0,
+          centerTitle: true,
+          toolbarHeight: 60.2,
+          toolbarOpacity: 0.8,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.only(
+              bottomRight: Radius.circular(25),
+              bottomLeft: Radius.circular(25),
+            ),
+          ),
+          elevation: 0.00,
+          backgroundColor: Color(0xFF8155BA),
+        ),
+        body: Container(
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                if(combinedData.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(15.0),
+                    child: Card(
+                      elevation: 10,
+                      shadowColor: Colors.deepPurple,
+                      // color: Colors.deepPurple,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Column(
+                          children: [
+                            const Row(
+                              children: [
+                                Text("Info",style: TextStyle(fontWeight: FontWeight.bold),),
+                              ],
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text("Location"),
+                                Text("${combinedData[0]["location"]}"),
+
+                              ],
+                            ), Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text("From Date"),
+                                Text(DateFormat('dd-MM-yyyy').format(DateTime.parse(combinedData[0]["from_date"]))),
+                              ],
+                            ), Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text("To Date"),
+                                Text(DateFormat('dd-MM-yyyy').format(DateTime.parse(combinedData[0]["to_date"]))),
+                              ],
+                            ), /*Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text("No of Members"),
+                            Text("${combinedData[0]["members"]}"),
+
+                          ],
+                        ),*/
+                            Divider(),
+                            Row(
+                              children: [
+                                Text("Amount Details",style: TextStyle(fontWeight: FontWeight.bold),),
+                              ],
+                            ),
+
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text("No of Members"),
+                                Text("${creationData[0]["members"]}"),
+                              ],
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text("Spend Per Head"),
+                                Text("₹${spendPerHead.toStringAsFixed(2)}"),
+                              ],
+                            ),
+                            SizedBox(height: 10,),
+                            for(int i=0 ;i<creationData.length;i++)
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text("Budget"),
+                                  Text("₹${totalBudget.toStringAsFixed(2)}"),
+                                ],
+                              ),
+
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text("Received Amount"),
+                                Text("₹${creationtotal.toStringAsFixed(2)}"),
+                              ],
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text("Spent Amount"),
+                                Text("₹${spenttotal.toStringAsFixed(2)}"),
+                              ],
+                            ),
+
+
+                            ///Divider code for calculation
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Container(width:80,child: Divider()),
+                              ],
+                            ),
+
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text("Remaining Amount"),
+                                Text("₹${remainingAmount.toStringAsFixed(2)}"),
+                              ],
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Container(width:80,child: Divider()),
+                              ],
+                            ),
+
+                            Divider(),
+                            Row(
+                              children: [
+                                Text("Received Amount",style: TextStyle(fontWeight: FontWeight.bold),),
+                              ],
+                            ),
+                            for(int i=0 ;i<membersData.length;i++)
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text("${membersData[i]["member_name"]}"),
+                                  Text("₹${double.tryParse(membersData[i]["amount"])!.toStringAsFixed(2)}"),
+                                ],
+                              ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Container(width:80,child: Divider()),
+                              ],
+                            ),
+
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Divider(),
+                                Text("₹${double.tryParse(creationtotal.toString())!.toStringAsFixed(2)}"),
+
+                              ],
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Container(width:80,child: Divider()),
+                              ],
+                            ),
+
+
+
+                            Divider(),
+                            Row(
+                              children: [
+                                Text("Spent Exepences by Categories",style: TextStyle(fontWeight: FontWeight.bold),),
+                              ],
+                            ),
+
+                            for(int i=0 ;i<spentData.length;i++)
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(DateFormat('dd-MMM').format(DateTime.parse(spentData[i]["date"]))),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+
+                                    children: [
+                                      Text("${spentData[i]["categories"]}"),
+                                      if (spentData[i]["remark"] != null &&
+                                          spentData[i]["remark"].isNotEmpty)
+                                        Container(child: Text("(${spentData[i]["remark"]})")),
+                                    ],
+                                  ),
+                                  Text("₹${double.tryParse(spentData[i]["amount"])!.toStringAsFixed(2)}"),
+                                ],
+                              ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Container(width:80,child: Divider()),
+                              ],
+                            ),
+
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Text("₹${spenttotal.toStringAsFixed(2)}"),
+                              ],
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Container(width:80,child: Divider()),
+                              ],
+                            ),
+                            Divider(),
+
+                            /*Row(
+                          children: [
+                            Text("Remarks",style: TextStyle(fontWeight: FontWeight.bold),),
+                          ],
+                        ),
+                        for(int i=0 ;i<spentData.length;i++)
+                          Row(
+                            children: [
+                              if (spentData[i]["remark"] != null &&
+                                  spentData[i]["remark"].isNotEmpty)
+                              Text("${spentData[i]["remark"]}"),
+
+                            ],
+                          ),
+                        Divider(),*/
+                            // Row(
+                            //   children: [
+                            //     Text("Amount Details",style: TextStyle(fontWeight: FontWeight.bold),),
+                            //   ],
+                            // ),
+                            // for(int i=0 ;i<creationData.length;i++)
+                            // Row(
+                            //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            //   children: [
+                            //     Text("Budget"),
+                            //     Text("${creationData[0]["budget"]}"),
+                            //   ],
+                            // ),
+                            // Row(
+                            //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            //   children: [
+                            //     Text("Received Amount"),
+                            //     Text("$creationtotal"),
+                            //   ],
+                            // ),
+                            // Row(
+                            //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            //   children: [
+                            //     Text("Spent Amount"),
+                            //     Text("$spenttotal"),
+                            //   ],
+                            // ),
+                            // Row(
+                            //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            //   children: [
+                            //     Text("Spent Per Head"),
+                            //     Text(spendPerHead.toStringAsFixed(2)),
+                            //   ],
+                            // ),
+                            // Row(
+                            //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            //   children: [
+                            //     Text("No of Persons"),
+                            //     Text("${creationData[0]["members"]}"),
+                            //   ],
+                            // ),
+                            // Row(
+                            //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            //   children: [
+                            //     Text("Remaining Amount"),
+                            //     Text(remainingAmount.toStringAsFixed(2)),
+                            //   ],
+                            // ),
+                            // Divider(),
+                            Row(
+                              children: [
+                                Text("Transaction Details",style: TextStyle(fontWeight: FontWeight.bold),),
+                              ],
+                            ),
+                            Container(
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Table(
+                                      border: TableBorder.all(),
+                                      defaultColumnWidth:const FixedColumnWidth(100.0),
+                                      columnWidths: const <int, TableColumnWidth>{
+                                        0:FixedColumnWidth(50),
+                                      },
+                                      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                                      // s.no
+                                      children: [const TableRow(children:[
+                                        TableCell(child:Center(child: Text('S.No.',style: TextStyle(fontSize: 15, color: Colors.black,fontWeight: FontWeight.bold)),)),
+                                        TableCell(child:Center(child: Text('Name',style: TextStyle(fontSize: 15, color: Colors.black,fontWeight: FontWeight.bold)),)),
+                                        TableCell(child:Center(child: Text('Amount \nto be \npaid',style: TextStyle(fontSize: 15, color: Colors.red,fontWeight: FontWeight.bold)),)),
+                                        TableCell(child:Center(child: Text('Amount \n to be \nReceived',style: TextStyle(fontSize: 15, color: Colors.green,fontWeight: FontWeight.bold)),)),
+                                      ]),
+                                        if(membersData.isNotEmpty)
+                                          for(var i = 0 ;i < membersData.length; i++) ...[
+                                            TableRow(
+                                              // decoration: BoxDecoration(color: Colors.grey[200]),
+                                                children:[
+                                                  //2 name
+                                                  TableCell(child: Center(child: Text("${i+1}"))),
+                                                  TableCell(child: Text(" ${membersData[i]["member_name"]}")),
+                                                  TableCell(
+                                                    child: Center(
+                                                      child: Column(
+                                                          mainAxisAlignment: MainAxisAlignment.center,
+                                                          children: [
+                                                            Text("${spendPerHead > double.tryParse(membersData[i]["amount"])! ? spendPerHead - double.tryParse(membersData[i]["amount"])! : 0}",
+                                                              style: TextStyle(color: Colors.red),
+                                                            ),
+
+                                                          ]),
+                                                    ),
+                                                  ),
+                                                  TableCell(
+                                                    child: Center(
+                                                      child: Column(
+                                                          mainAxisAlignment: MainAxisAlignment.center,
+                                                          children: [
+                                                            Text("${double.tryParse(membersData[i]["amount"])! > spendPerHead ? double.tryParse(membersData[i]["amount"])! - spendPerHead : 0}",
+                                                              style: TextStyle(color: Colors.green),
+                                                            ),                                                       ]),
+                                                    ),
+                                                  )
+                                                ]),
+                                          ]
+                                      ]),
+                                )
+                            ),
+
+
+
+
+
+
+
+
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+              ],
+            ),
+          ),
+        )
     );
   }
 
-  Future<Map<String, dynamic>> _getReportData(String tripId) async {
+  /*Future<Map<String, dynamic>> _getReportData(String tripId) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? tripName = prefs.getString('$tripId:tripName');
-    String? noOfPerson = prefs.getString('$tripId:noOfPerson');
-    String? source = prefs.getString('$tripId:source');
-    String? fromDate = prefs.getString('$tripId:fromDate');
-    String? toDate = prefs.getString('$tripId:toDate');
-    String? totalBudget = prefs.getString('$tripId:totalBudget');
+    String? tripName = prefs.getString('$tripId:trip_name');
+    String? noOfPerson = prefs.getString('$tripId:members');
+    String? source = prefs.getString('$tripId:location');
+    String? fromDate = prefs.getString('$tripId:from_date');
+    String? toDate = prefs.getString('$tripId:to_date');
+    String? totalBudget = prefs.getString('$tripId:amount');
     String? totalAmountPerson =
         prefs.getString('$tripId:totalAmountPerson') ?? "";
-    List<String>? expensesList = prefs.getStringList('$tripId:expenses');
-    List<String>? expensesListPerson = prefs.getStringList('$tripId:persons');
+    List<String>? expensesList = prefs.getStringList('$tripId:amount');
+    List<String>? expensesListPerson = prefs.getStringList('$tripId:members');
     List<String>? spentExpensesList =
     prefs.getStringList('$tripId:spentexpenses');
     double remaining = prefs.getDouble('$tripId:remaining') ?? 0.0;
@@ -112,16 +700,16 @@ class _TripBudgetReportPageState extends State<TripBudgetReportPage> {
     };
 
     return reportData;
-  }
+  }*/
 
   Widget _buildReportCard(Map<String, dynamic> data, BuildContext context) {
-    String totalBudget = data['totalBudget'];
+    String totalBudget = data['amount'];
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => DetailedReportPage(reportData: data),
+            builder: (context) => ViewDataPage(),
           ),
         );
       },
@@ -150,7 +738,7 @@ class _TripBudgetReportPageState extends State<TripBudgetReportPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(data['tripName'] ?? '',
+                      Text(data['trip_name'] ?? '',
                           style: Theme.of(context).textTheme.labelMedium),
                       SizedBox(height: 10),
                       Text(
@@ -171,6 +759,36 @@ class _TripBudgetReportPageState extends State<TripBudgetReportPage> {
       ),
     );
   }
+  String _calculateBalance(dynamic amount, double spendPerHead) {
+    if (amount == null) return '';
+
+    try {
+      double amountValue = double.parse(amount.toString());
+      return '${(amountValue - spendPerHead).toStringAsFixed(2)}';
+    } catch (e) {
+      return '';
+    }
+  }
+  Color _calculateBalanceColor(dynamic amount, double spendPerHead) {
+    if (amount == null) return Colors.black;
+
+    try {
+      double amountValue = double.parse(amount.toString());
+      double balance = amountValue - spendPerHead;
+      if (balance > 0) {
+        return Colors.green;
+      } else if (balance < 0) {
+        return Colors.red;
+      } else {
+        return Colors.black;
+      }
+    } catch (e) {
+      return Colors.black;
+    }
+  }
+
+
+
 }
 
 class DetailedReportPage extends StatelessWidget {
@@ -531,12 +1149,13 @@ class DetailedReportPage extends StatelessWidget {
                             : '${balanceData['balanceAmount'].toStringAsFixed(2)} Get',
                         textAlign: TextAlign.right,
                         style: TextStyle(
-                          color: balanceData['balanceAmount'] < 0 ? Colors.green : Colors.red,
+                          color: balanceData['balanceAmount'] < 0 ? Colors.red : Colors.green,
                           fontStyle: FontStyle.italic,
                         ),
                       ),
                     ),
                   ),
+
                 ],
               ),
           ],
@@ -595,9 +1214,7 @@ class DetailedReportPage extends StatelessWidget {
       return SizedBox.shrink();
     }
 
-    // Convert totalAmountPerson to double and format it
-    double totalAmount = double.tryParse(totalAmountPerson) ?? 0.0;
-    String formattedTotalAmount = '₹${totalAmount.toStringAsFixed(2)}';
+
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -643,7 +1260,7 @@ class DetailedReportPage extends StatelessWidget {
           ),
         ),
         SizedBox(height: 8),
-        Align(
+        /* Align(
           alignment: Alignment.centerRight,
           child: Text(
             formattedTotalAmount,
@@ -652,7 +1269,7 @@ class DetailedReportPage extends StatelessWidget {
                 .labelMedium!
                 .copyWith(fontWeight: FontWeight.bold),
           ),
-        ),
+        ),*/
       ],
     );
   }

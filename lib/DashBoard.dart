@@ -380,7 +380,7 @@ class _DashBoardState extends State<DashBoard> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => Reports(),
+                builder: (context) => Reports(uid: "1"),
               ),
             );
           }
@@ -675,7 +675,7 @@ class _DashBoardState extends State<DashBoard> {
                             // Navigate to another page when the card is tapped
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (context) => DailyDashboard()),
+                              MaterialPageRoute(builder: (context) => DailyDashboard(remainingAmount: '',)),
                             );
                           },
                           child:Container(
@@ -740,7 +740,7 @@ class _DashBoardState extends State<DashBoard> {
                         // Navigate to another page when the card is tapped
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => const MonthlyDashboard(user_id: "9")),
+                          MaterialPageRoute(builder: (context) => const MonthlyDashboard(uid: '',)),
                         );
                       },
                       child: Container(

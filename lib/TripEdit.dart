@@ -1,19 +1,31 @@
+import 'dart:convert';
+
 import 'package:bottom_bar_matu/bottom_bar/bottom_bar_bubble.dart';
 import 'package:bottom_bar_matu/bottom_bar_item.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:mybudget/tripdashboard.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:hive/hive.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'TripView.dart';
-import 'package:flutter_typeahead/flutter_typeahead.dart';
+import 'package:http/http.dart'as http;
 
 class TripEdit extends StatefulWidget {
   final String tripId;
+  final String id;
+  final String fromdate;
+  final String toDate;
+  final String tripType;
+  final String tripName;
 
-  const TripEdit({Key? key, required this.tripId}) : super(key: key);
+  const TripEdit({Key? key,
+    required this.tripId,
+    required this.id,
+    required this.fromdate,
+    required this.toDate,
+    required this.tripType,
+    required this.tripName
+  }) : super(key: key);
 
   @override
   State<TripEdit> createState() => _TripEditState();
@@ -80,82 +92,8 @@ class _TripEditState extends State<TripEdit> {
       return roundedAmount.toStringAsFixed(2);
     }
   }
+  int? countNumber = 0;
 
-  void _loadDataForTrip() async {
-    // Fetch data from SharedPreferences using widget.tripId
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    // Use widget.tripId to construct keys and get the data
-    String tripNameKey = '${widget.tripId}:tripName';
-    String sourceKey = '${widget.tripId}:source';
-    String fromDateKey = '${widget.tripId}:fromDate';
-    String toDateKey = '${widget.tripId}:toDate';
-    String noOfPersonsKey = '${widget.tripId}:noOfPerson';
-    String totalBudgetKey = '${widget.tripId}:totalBudget';
-    String personsKey = '${widget.tripId}:persons';
-    String categoriesKey = '${widget.tripId}:expenses';
-
-    setState(() {
-      // Use the fetched data to update the TextEditingControllers
-      _tripNameController.text = prefs.getString(tripNameKey) ?? '';
-      _sourceController.text = prefs.getString(sourceKey) ?? '';
-      fromDate.text = prefs.getString(fromDateKey) ?? '';
-      toDate.text = prefs.getString(toDateKey) ?? '';
-      _noOfPersonController.text = prefs.getString(noOfPersonsKey) ?? '';
-      totalBudget.text = prefs.getString(totalBudgetKey) ?? "";
-      List<String>? personsList = prefs.getStringList(personsKey);
-      expenses2 = personsList?.map((person) {
-        List<String> parts = person.split(':');
-        return {
-          'name': TextEditingController(text: parts[0]),
-          'perAmount': TextEditingController(text: parts[1]),
-        };
-      }).toList() ??
-          [];
-      List<String>? categoriesList = prefs.getStringList(categoriesKey);
-      expenses = categoriesList?.map((categories) {
-        List<String> parts = categories.split(':');
-        return {
-          'category': TextEditingController(text: parts[0]),
-          'amount': TextEditingController(text: parts[1]),
-        };
-      }).toList() ??
-          [];
-    });
-  }
-
-
-  void _updateDataInSharedPreferences(String tripId) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-
-    String roundedAmount = calculateAmountPerHead();
-
-    prefs.setString('$tripId:tripName', _tripNameController.text);
-    prefs.setString('$tripId:noOfPerson', _noOfPersonController.text);
-    prefs.setString('$tripId:source', _sourceController.text);
-    prefs.setString('$tripId:fromDate', fromDate.text);
-    prefs.setString('$tripId:toDate', toDate.text);
-    prefs.setString('$tripId:totalBudget', totalBudget.text);
-    prefs.setString('$tripId:totalAmountPerson', totalAmountPerson.toString());
-    prefs.setString('$tripId:roundedAmount', roundedAmount);
-
-    List<String> personsList = expenses2.map((person) {
-      final name =
-          person['name']?.text ?? ''; // Use null-aware operator to handle null
-      final perAmount = person['perAmount']?.text ??
-          ''; // Use null-aware operator to handle null
-      return '$name:$perAmount';
-    }).toList();
-    prefs.setStringList('$tripId:persons', personsList);
-
-    List<String> categoriesList = expenses.map((person) {
-      final categories = person['category']?.text ??
-          ''; // Use null-aware operator to handle null
-      final amount = person['amount']?.text ??
-          ''; // Use null-aware operator to handle null
-      return '$categories:$amount';
-    }).toList();
-    prefs.setStringList('$tripId:expenses', categoriesList);
-  }
 
   void _addCategoryField() {
     setState(() {
@@ -176,7 +114,9 @@ class _TripEditState extends State<TripEdit> {
       if (expenses2.length < maxRows) {
         setState(() {
           expenses2.add({
+            'id': TextEditingController(),
             'name': TextEditingController(),
+            'mobile': TextEditingController(),
             'perAmount': TextEditingController(),
           });
 
@@ -213,6 +153,7 @@ class _TripEditState extends State<TripEdit> {
     }
   }
 
+
 /*  void _updateTotalBudget() {
     totalBudget = 0.0;
     for (var expense in expenses) {
@@ -220,11 +161,19 @@ class _TripEditState extends State<TripEdit> {
       totalBudget += amount;
     }
   }*/
+  double valueget = 0.0;
+  double valueget3=0.0;
   double _updateTotalBudget2() {
-    totalAmountPerson = 0.0;
+    double valueget = 0.0;
     for (var expense2 in expenses2) {
       double amount = double.tryParse(expense2['perAmount']!.text) ?? 0.0;
-      totalAmountPerson += amount;
+      valueget += amount;
+      setState(() {
+        totalAmountPerson =valueget;
+        valueget3 =totalAmountPerson+valueget2;
+
+
+      });
     }
     return totalAmountPerson;
   }
@@ -234,20 +183,349 @@ class _TripEditState extends State<TripEdit> {
     return text.substring(0, 1).toUpperCase() + text.substring(1);
   }
 
+  Future<void> AddTrip() async {
+    try {
+      final url = Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/Trip.php');
+      final DateTime fromparsedDate =
+      DateFormat('dd-MM-yyyy').parse(fromDate.text);
+      final fromformattedDate = DateFormat('yyyy-MM-dd').format(fromparsedDate);
+      final DateTime toparsedDate =
+      DateFormat('dd-MM-yyyy').parse(toDate.text);
+      final toformattedDate = DateFormat('yyyy-MM-dd').format(toparsedDate);
+      print("trip url:$url");
+
+      List<Map<String, String>> membersData = [];
+      for (var expense2 in expenses2) {
+        membersData.add({
+          'name': expense2['name']!.text,
+          'mobile': expense2['mobile']!.text,
+          'amount': expense2['perAmount']!.text,
+        });
+      }
+      final response = await http.post(
+        url,
+        body: jsonEncode({
+          "trip_type": tripType,
+          "trip_name": _tripNameController.text,
+          "location": _sourceController.text,
+          "from_date": fromformattedDate,
+          "to_date": toformattedDate,
+          "budget": totalBudget.text,
+          "members": _noOfPersonController.text,
+          "uid": "7",
+          "trip_id": widget.tripId,
+          "members_data": membersData,
+          "createdOn": DateTime.now().toString(),
+        }),
+      );
+      // print("T Response body: ${response.body}");
+      // print("T Response code: ${response.statusCode}");
+      if (response.statusCode == 200) {
+        print("Trip added successfully!");
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Trip Added Successfully")));
+        // print("T Response body: ${response.body}");
+        // print("T Response code: ${response.statusCode}");
+      } else {
+        print("Error: ${response.reasonPhrase}");
+      }
+    } catch (e) {
+      print("Error during trip addition: $e");
+      // Handle error as needed
+    }
+  }
   @override
   void initState() {
     super.initState();
     _addCategoryField();
     _addCategoryField2();
-    //_updateTotalBudget();
+    fetchTCreation();
+    fetchTMembers();
     setState(() {
       _updateTotalBudget2();
     });
-    _loadDataForTrip();
+  }
+  String? id ="7";
+  List<Map<String,dynamic>> creationData=[];
+  String? tripType="";
+  Future<void> fetchTCreation() async {
+    try {
+      print("trip Id:${widget.tripId}");
+
+      final url = Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/Trip.php?table=trip_creation&uid=${widget.id}&trip_id=${widget.tripId}');
+      final response = await http.get(url);
+      print("id fetch URL :$url" );
+
+      if (response.statusCode == 200) {
+        print("response.statusCode :${response.statusCode}" );
+        print("response .body :${response.body}" );
+        final responseData = json.decode(response.body);
+        if (responseData is List<dynamic>) {
+          setState(() {
+            creationData = responseData.cast<Map<String, dynamic>>();
+            if (creationData.isNotEmpty) {
+              setState(() {
+                tripType = creationData[0]["trip_type"];
+                _tripNameController.text = creationData[0]["trip_name"];
+                _sourceController.text = creationData[0]["location"];
+                fromDate.text = creationData[0]["from_date"];
+                toDate.text = creationData[0]["to_date"];
+                totalBudget.text = creationData[0]["budget"];
+                _noOfPersonController.text = creationData[0]["members"];
+
+                print("Trip_creation data--$creationData" );
+
+              });
+            }
+          });
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("This mobile number is not member. Enter the member mobile number."),
+            ),
+          );
+          //    referreridcotroller.clear();
+          print('Invalid response data format');
+        }
+      } else {
+        // Handle non-200 status code
+        print('Error: ${response.statusCode}');
+      }
+    } catch (error) {
+      // Handle other errors
+      print('Error: $error');
+    }
+  }
+  TextEditingController mName = TextEditingController();
+  TextEditingController mNo = TextEditingController();
+  TextEditingController amt = TextEditingController();
+
+  List<Map<String,dynamic>> membersData=[];
+
+  double totalAmt=0.0;
+  String? totalAmountString="";
+
+
+  Future<void> fetchTMembers() async {
+    try {
+      print("trip Id:${widget.tripId}");
+      final url = Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/Trip.php?table=trip_members&trip_id=${widget.tripId}');
+      final response = await http.get(url);
+      print("id members URL :$url");
+      print("M response.statusCode :${response.statusCode}");
+      print("M response .body :${response.body}");
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        for(int i =0;i<responseData.length;i++){
+          double? checkvalue =0.0;
+          checkvalue =double.tryParse(responseData[i]["amount"])??0.0;
+          valueget2 +=checkvalue;
+        }
+        if (responseData is List<dynamic>) {
+
+          setState(() {
+            membersData = responseData.cast<Map<String, dynamic>>();
+          });
+        } else {
+          print('Invalid response data format');
+        }
+      } else {
+        // Handle non-200 status code
+        print('Error: ${response.statusCode}');
+      }
+    } catch (error) {
+      // Handle other errors
+      print('Error: $error');
+    }
   }
 
+  bool visible = false;
+  Future<void> updateTrip(String id) async {
+    try {
+      final url = Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/Trip.php');
+      final DateTime fromparsedDate =
+      DateFormat('dd-MM-yyyy').parse(fromDate.text);
+      //fromdatecontrollers is --- fromDate.text
+      final fromformattedDate = DateFormat('yyyy-MM-dd').format(fromparsedDate);
+      final DateTime toparsedDate =
+      DateFormat('dd-MM-yyyy').parse(toDate.text);
+      final toformattedDate = DateFormat('yyyy-MM-dd').format(toparsedDate);
+      //todatecontrollers is --- toDate.text
+
+      print("Update url:$url");
+
+      List<Map<String, String>> membersData = [];
+      for (var expense2 in expenses2) {
+        membersData.add({
+          'id': id,
+          'name': mName.text,
+          'mobile': mNo.text,
+          'amount': amt.text,
+        });
+      }
+
+      final response = await http.put(
+        url,
+        body: jsonEncode({
+          "trip_type":widget.tripType,
+          "trip_name": _tripNameController.text,
+          "location": _sourceController.text,
+          "from_date":fromformattedDate,
+          "to_date":toformattedDate,
+          "budget": totalBudget.text,
+          "members": _noOfPersonController.text,
+          "trip_id":widget.tripId,
+          "uid":widget.id,
+          "members_data": membersData,
+          "createdOn": DateTime.now().toString(),
+        }),
+      );
+
+      print("U Response body: ${response.body}");
+      print("U Response code: ${response.statusCode}");
+      if (response.statusCode == 200) {
+        print("Trip Updated successfully!");
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Trip Updated Successfully")));
+        // print("T Response body: ${response.body}");
+        // print("T Response code: ${response.statusCode}");
+      } else {
+        print("Error: ${response.reasonPhrase}");
+      }
+    } catch (e) {
+      print("Error during trip addition: $e");
+      // Handle error as needed
+    }
+  }
+  Future<void> updateCreation() async {
+    try {
+      final url = Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/Trip.php');
+      final DateTime fromparsedDate =
+      DateFormat('dd-MM-yyyy').parse(fromDate.text);
+      //fromdatecontrollers is --- fromDate.text
+      final fromformattedDate = DateFormat('yyyy-MM-dd').format(fromparsedDate);
+      final DateTime toparsedDate =
+      DateFormat('dd-MM-yyyy').parse(toDate.text);
+      final toformattedDate = DateFormat('yyyy-MM-dd').format(toparsedDate);
+      //todatecontrollers is --- toDate.text
+
+      print("Update url:$url");
+
+      List<Map<String, String>> membersData = [];
+      for (var expense2 in expenses2) {
+        membersData.add({
+          'name': mName.text,
+          'mobile': mNo.text,
+          'amount': amt.text,
+        });
+      }
+
+      final response = await http.put(
+        url,
+        body: jsonEncode({
+          "trip_type":widget.tripType,
+          "trip_name": _tripNameController.text,
+          "location": _sourceController.text,
+          "from_date":fromformattedDate,
+          "to_date":toformattedDate,
+          "budget": totalBudget.text,
+          "members": _noOfPersonController.text,
+          "trip_id":widget.tripId,
+          "uid":widget.id,
+          "received_amount":valueget3 == 0.0? valueget2.toStringAsFixed(2):valueget3.toStringAsFixed(2),
+          "members_data": membersData,
+          "createdOn": DateTime.now().toString(),
+        }),
+      );
+
+      print("U Response body: ${response.body}");
+      print("U Response code: ${response.statusCode}");
+      if (response.statusCode == 200) {
+        print("Trip Updated successfully!");
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Trip Updated Successfully")));
+        // print("T Response body: ${response.body}");
+        // print("T Response code: ${response.statusCode}");
+      } else {
+        print("Error: ${response.reasonPhrase}");
+      }
+    } catch (e) {
+      print("Error during trip addition: $e");
+      // Handle error as needed
+    }
+  }
+
+  void saveSpentData(List<dynamic> spentExpenses, String tripId) async {
+    final url = Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/tripEdit_add.php');
+    // Create a list to store expense data
+    List<Map<String, dynamic>> expenseDataList = [];
+
+    // Prepare expense data
+    for (var expense in spentExpenses) {
+      Map<String, dynamic> expenseData = {
+        'member_name': expense['name'].text,
+        'mobile': expense['mobile'].text,
+        'amount': expense['perAmount'].text,
+      };
+      expenseDataList.add(expenseData);
+    }
+
+    // Make POST request
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'trip_id': tripId,
+        'tripspent': expenseDataList, // Send the expense data list
+      }),
+    );
+
+    // Handle response
+    if (response.statusCode == 200) {
+      print("Response Status: ${response.statusCode}");
+      print("Response body: ${response.body}");
+      print('Data sent successfully!');
+    } else {
+      print('Failed to send data. Error: ${response.statusCode}');
+    }
+  }
+  //double totalAmountPerson = 0;
+
+  Future<void> delete(String id) async {
+    try {
+      final url = Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/tripEdit.php?id=$id');
+      final response = await http.delete(url);
+      print("Delete Url: $url");
+      if (response.statusCode == 200) {
+        Navigator.push(context, MaterialPageRoute(builder: (context)=>TripEdit(tripId: widget.tripId,
+          id: widget.id,
+          fromdate: widget.fromdate,
+          toDate: widget.toDate,
+          tripType: widget.tripType,
+          tripName: widget.tripName,
+
+
+        )));
+        // Success handling, e.g., show a success message
+        // Navigator.pop(context);
+      }
+      else {
+        // Error handling, e.g., show an error message
+        print('Error: ${response.statusCode}');
+      }
+    }
+    catch (e) {
+      // Handle network or server errors
+      print('Error making HTTP request: $e');
+    }
+  }
+
+  double valueget2 =0.0;
   @override
   Widget build(BuildContext context) {
+
+
+// Now 'totalAmount' holds the total of all amounts in 'membersData'
+    print('Total Amount: $valueget2');
     return Scaffold(
       backgroundColor: Colors.deepPurple.shade50,
       appBar: PreferredSize(
@@ -285,11 +563,16 @@ class _TripEditState extends State<TripEdit> {
             title: Row(
               //mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
+                /*Text(
                   'Total Amount: ₹${_updateTotalBudget2().toStringAsFixed(2)}',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.titleMedium,
-                ),
+                ),*/
+                if(creationData.isNotEmpty)
+                  Text(valueget3 ==0.00?
+                  'Total Amount: ₹ $valueget2': 'Total Received Amount: ₹ ${valueget3.toStringAsFixed(2)}',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
 
                 /*const SizedBox(width: 10,),
                 Text(
@@ -625,13 +908,21 @@ class _TripEditState extends State<TripEdit> {
                             color: Colors.black,
                           ),
                         ),
-                        Text(
-                          'Total Received Amount: ${totalAmountPerson.toStringAsFixed(2)}',
+                        //valueget3 == 0.0? valueget2.toStringAsFixed(2):valueget3.toStringAsFixed(2)
+                        Text(valueget3 ==0.0?
+                        'Total Amount : ₹ $valueget2': 'Total Received Amount: ${valueget3.toStringAsFixed(2)}',
                           style: TextStyle(
                             fontStyle: FontStyle.italic,
                             color: Colors.black,
                           ),
                         ),
+                        /*Text(valueget3 ==0.0?
+                        'Total Received Amount: ${valueget2.toStringAsFixed(2)}': 'Total Received Amount: ${valueget3.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontStyle: FontStyle.italic,
+                            color: Colors.black,
+                          ),
+                        ),*/
                       ],
                     ),
                   ),
@@ -664,12 +955,16 @@ class _TripEditState extends State<TripEdit> {
                             ),
                             child: Column(
                               children: [
+                                // for (var i = 0; i < expenses2.length; i++)
                                 for (var expense2 in expenses2)
+
                                   Padding(
                                     padding: const EdgeInsets.only(
                                         top: 8, left: 8, right: 8, bottom: 16),
                                     child: Row(
                                       children: [
+
+
                                         Expanded(
                                           child: TextFormField(
                                             controller: expense2['name'],
@@ -703,6 +998,29 @@ class _TripEditState extends State<TripEdit> {
                                                     .textTheme
                                                     .labelMedium),
                                             // keyboardType: TextInputType.number,
+                                          ),
+                                        ),
+                                        SizedBox(width: 16),
+                                        Expanded(
+                                          child: TextFormField(
+                                            controller: expense2['mobile'],
+                                            style:
+                                            const TextStyle(fontSize: 14),
+
+                                            decoration: InputDecoration(
+                                                prefixText: "+91",
+                                                labelText: expense2['mobile']!
+                                                    .text
+                                                    .isEmpty
+                                                    ? 'Mobile'
+                                                    : null, // Hide label when amount is entered
+                                                labelStyle: Theme.of(context)
+                                                    .textTheme
+                                                    .labelMedium),
+                                            keyboardType: TextInputType.number,
+                                            inputFormatters: [
+                                              LengthLimitingTextInputFormatter(10),
+                                            ],
                                           ),
                                         ),
                                         SizedBox(width: 16),
@@ -798,13 +1116,14 @@ class _TripEditState extends State<TripEdit> {
                                   fromDate.text.isEmpty ||
                                   toDate.text.isEmpty) {
                                 _showErrorToast('Please fill the all fields');
-                              } else if (_isExpensesListEmpty()) {
+                              } /*else if (_isExpensesListEmpty()) {
                                 _showErrorToast('Please add members list');
-                              } else if (_areExpensesFieldsEmpty()) {
+                              }*/ /*else if (_areExpensesFieldsEmpty()) {
                                 _showErrorToast(
                                     'Name and Amount cannot be empty');
-                              } else {
-                                _updateDataInSharedPreferences(widget.tripId);
+                              } */else {
+                                updateCreation();
+                                //   _updateDataInSharedPreferences(widget.tripId);
                                 showDialog(
                                   context: context,
                                   builder: (BuildContext context) {
@@ -814,6 +1133,10 @@ class _TripEditState extends State<TripEdit> {
                                       actions: [
                                         ElevatedButton(
                                           onPressed: () {
+                                            updateCreation();
+                                            saveSpentData(expenses2, widget.tripId);
+                                            // AddTripmember();
+                                            // updateTrip();
                                             Navigator.push(
                                                 context,
                                                 MaterialPageRoute(
@@ -844,6 +1167,38 @@ class _TripEditState extends State<TripEdit> {
                                 style: TextStyle(color: Colors.white)),
                           ),
                         ),
+                        /* Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: ElevatedButton(
+                            onPressed: () {
+                              if (totalBudget.text.isEmpty ||
+
+                                  _noOfPersonController.text.isEmpty ||
+                                  _tripNameController.text.isEmpty ||
+                                  _sourceController.text.isEmpty ||
+                                  fromDate.text.isEmpty ||
+                                  toDate.text.isEmpty) {
+                                _showErrorToast('Please fill the all fields');
+                              } *//*else if (_isExpensesListEmpty()) {
+                                _showErrorToast('Please add members list');
+                              }*//* *//*else if (_areExpensesFieldsEmpty()) {
+                                _showErrorToast(
+                                    'Name and Amount cannot be empty');
+                              } *//*else {
+                                saveSpentData(expenses2, widget.tripId);
+
+                                //   _updateDataInSharedPreferences(widget.tripId);
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                              Colors.deepPurple, // Change button color here
+                              elevation: 5, // Add elevation
+                            ),
+                            child: const Text('Submit',
+                                style: TextStyle(color: Colors.white)),
+                          ),
+                        ),*/
                       ],
                     ),
                     // Text('Total Budget: $totalBudget',
@@ -852,6 +1207,225 @@ class _TripEditState extends State<TripEdit> {
                   ],
                 ),
               ),
+
+              Container(
+                  child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Table(
+                          border: TableBorder.all(),
+                          defaultColumnWidth:const FixedColumnWidth(90.0),
+                          columnWidths: const <int, TableColumnWidth>{
+                            0:FixedColumnWidth(100),
+                            1:FixedColumnWidth(100),
+                            2:FixedColumnWidth(70),
+                            4:FixedColumnWidth(50),
+                            5:FixedColumnWidth(50),
+                          },
+                          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                          // s.no
+                          children: [TableRow(children:[
+                            //Name
+                            TableCell(child:Center(child: Text('Members',style: TextStyle(fontSize: 16, color: Colors.black)),)),
+                            // company name
+
+                            TableCell(child:Center(child: Text('Mobile',style: TextStyle(fontSize: 16, color: Colors.black)),)),
+
+                            TableCell(child:Center(child: Text('Amount',style: TextStyle(fontSize: 16, color: Colors.black)),)),
+                            //Email
+                            TableCell(child:Center(child: Column(children: [SizedBox(height: 8,), Text('Detele', style: TextStyle(fontSize: 16, color: Colors.black)), SizedBox(height: 8,),],),)),
+                            // Chapter
+                            TableCell(child: Center(child: Text('Edit', style: TextStyle(fontSize: 16, color: Colors.black)),))]),
+
+                            for(var i = 0 ;i < membersData.length; i++) ...[
+
+                              TableRow(
+                                  decoration: BoxDecoration(color: Colors.grey[200]),
+                                  children:[
+                                    // 1 Table row contents
+
+                                    //2 name
+                                    TableCell(child: Center(child: Text('${membersData[i]["member_name"] ?? ''}',),)),
+                                    // 3 company name
+                                    TableCell(child:Center(child: Text('${membersData[i]["mobile"]?? ''}',),)),
+                                    // 4 email
+                                    TableCell(child:Center(child: Text('${membersData[i]["amount"]?? ''}',),)),
+
+                                    TableCell(child: Center(child:
+                                    IconButton(
+                                        onPressed: (){
+                                          showDialog(
+                                              context: context,
+                                              builder: (ctx) =>
+                                              // Dialog box for register meeting and add guest
+                                              AlertDialog(
+                                                backgroundColor: Colors.grey[800],
+                                                title: const Text('Delete',
+                                                    style: TextStyle(color: Colors.white)),
+                                                content: const Text("Do you want to Delete the Member?",
+                                                    style: TextStyle(color: Colors.white)),
+                                                actions: [
+                                                  TextButton(
+                                                      onPressed: () async{
+                                                        delete(membersData[i]["id"]);
+                                                        Navigator.pop(context);
+                                                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                                                            content: Text("You have Successfully Deleted")));
+                                                      },
+                                                      child: const Text('Yes')),
+                                                  TextButton(
+                                                      onPressed: () {
+                                                        Navigator.pop(context);
+                                                      },
+                                                      child: const Text('No'))
+                                                ],
+                                              )
+                                          );
+                                        }, icon: const Icon(Icons.delete,color: Colors.red,)))),
+                                    // 5 chapter
+                                    TableCell(child:Center(
+                                        child:IconButton(
+                                            onPressed: (){
+                                              showDialog<void>(
+                                                context: context,
+                                                builder: (BuildContext dialogContext) {
+                                                  return AlertDialog(
+                                                    backgroundColor: Colors.white,
+                                                    title: const Text('Edit',),
+                                                    content:  SizedBox(width: 300,
+                                                      child: Column(
+                                                        children: [
+
+                                                          SizedBox(
+                                                            width: 16,
+                                                          ),
+
+                                                          /// Cargories
+
+                                                          SizedBox(width: 16),
+                                                          Expanded(
+                                                            child: TextFormField(
+                                                              controller: mName = TextEditingController(text: membersData[i]['member_name']),
+                                                              style: const TextStyle(fontSize: 14),
+                                                              onChanged: (value) {
+                                                                setState(() {
+                                                                  //updatetotalspent();
+                                                                  // updateTrip();
+                                                                  _updateTotalBudget2();
+                                                                  setState(() {
+                                                                    //    errormsg = null;
+                                                                  });
+                                                                });
+                                                              },
+                                                              /*  decoration: InputDecoration(
+                                                              //   hintText: monthlyexpenses[i]
+                                                              //   ['monthlyamount']!
+                                                              //       .text
+                                                              //       .isEmpty
+                                                              //       ? 'Rs'
+                                                              //       : null,
+                                                              //   hintStyle: const TextStyle(
+                                                              //       fontSize: 16,
+                                                              //       color: Colors.black),
+                                                              // ),
+                                                              keyboardType: TextInputType.number,
+                                                            ),*/
+                                                            ),
+
+                                                            /// Amount
+                                                          ),
+                                                          Expanded(
+                                                            child: TextFormField(
+                                                              controller: mNo = TextEditingController(text: membersData[i]['mobile']),
+                                                              style: const TextStyle(fontSize: 14),
+                                                              onChanged: (value) {
+                                                                setState(() {
+                                                                  //updatetotalspent();
+                                                                  // updateTrip();
+                                                                  _updateTotalBudget2();
+                                                                  setState(() {
+                                                                    //    errormsg = null;
+                                                                  });
+                                                                });
+                                                              },
+                                                            ),
+
+                                                            /// Amount
+                                                          ),
+                                                          Expanded(
+                                                            child: TextFormField(
+                                                              controller: amt = TextEditingController(text: membersData[i]['amount']),
+                                                              style: const TextStyle(fontSize: 14),
+                                                              onChanged: (value) {
+                                                                setState(() {
+                                                                  //updatetotalspent();
+                                                                  // updateTrip();
+                                                                  _updateTotalBudget2();
+                                                                  setState(() {
+                                                                    //    errormsg = null;
+                                                                  });
+                                                                });
+                                                              },
+                                                              /*  decoration: InputDecoration(
+                                                              //   hintText: monthlyexpenses[i]
+                                                              //   ['monthlyamount']!
+                                                              //       .text
+                                                              //       .isEmpty
+                                                              //       ? 'Rs'
+                                                              //       : null,
+                                                              //   hintStyle: const TextStyle(
+                                                              //       fontSize: 16,
+                                                              //       color: Colors.black),
+                                                              // ),
+                                                              keyboardType: TextInputType.number,
+                                                            ),*/
+                                                            ),
+
+                                                            /// Amount
+                                                          )
+
+
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    actions: <Widget>[
+                                                      Row(
+                                                        mainAxisAlignment: MainAxisAlignment.end,
+                                                        children: [
+                                                          TextButton(
+                                                            child: const Text('Ok',),
+                                                            onPressed: () {
+
+                                                              updateTrip(membersData[i]["id"]);
+                                                              Navigator.pop(context); // Dismiss alert dialog
+                                                            },
+                                                          ),
+                                                          TextButton(
+                                                            child:  const Text('Cancel',),
+                                                            onPressed: () {
+                                                              Navigator.pop(context);
+                                                              // Navigator.of(dialogContext).pop(); // Dismiss alert dialog
+                                                            },
+                                                          ),
+                                                        ],
+                                                      ),
+
+                                                    ],
+                                                  );
+                                                },
+                                              );
+                                            },
+                                            icon: Icon(Icons.edit_note,color: Colors.blue,)))),
+                                  ]
+                              ),
+                            ]
+                          ]   )
+                  )
+              ),
+
+              // OutlinedButton(onPressed: (){
+              //   saveSpentData(expenses2, widget.tripId);
+              //   //  addMembers();
+              // }, child: Text("test"))
             ],
           ),
         ),

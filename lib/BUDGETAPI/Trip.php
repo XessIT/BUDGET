@@ -14,26 +14,42 @@
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
    $table = isset($_GET['table']) ? $_GET['table'] : "";
-    if ($table == "offers") {
-            $offerlist = "SELECT * FROM offers where block_status='Unblock'";
+    if ($table == "trip_creation") {
+    $uid = isset($_GET['uid']) ? mysqli_real_escape_string($conn, $_GET['uid']) : "";
+    $trip_id = isset($_GET['trip_id']) ? mysqli_real_escape_string($conn, $_GET['trip_id']) : "";
+
+            $offerlist = "SELECT * FROM trip_creation where uid ='$uid' AND trip_id = '$trip_id'";
+
             $offerResult = mysqli_query($conn, $offerlist);
             if ($offerResult && mysqli_num_rows($offerResult) > 0) {
                 $offers = array();
                 while ($row = mysqli_fetch_assoc($offerResult)) {
                     $offers[] = $row;
-                  /*    while ($row = mysqli_fetch_assoc($offerResult)) {
-                                    $row['offer_image'] = base64_encode(file_get_contents($row['offer_image'])); // Encode image data to base64
-                                    $offers[] = $row;
-                                } */
-                }
+                               }
                 echo json_encode($offers);
             } else {
                 echo json_encode(array("message" => "No offers found"));
             }
-    } elseif ($table == "registration") {
-    $id = isset($_GET['id']) ? mysqli_real_escape_string($conn, $_GET['id']) : "";
-                 // Fetch data from the registration table
-                        $registrationlist = "SELECT * FROM registration where id='$id'";
+    }
+    if ($table == "trip_spent") {
+          $trip_id = isset($_GET['trip_id']) ? mysqli_real_escape_string($conn, $_GET['trip_id']) : "";
+
+                  $offerlist = "SELECT * FROM trip_spent where trip_id = '$trip_id'";
+
+                  $offerResult = mysqli_query($conn, $offerlist);
+                  if ($offerResult && mysqli_num_rows($offerResult) > 0) {
+                      $offers = array();
+                      while ($row = mysqli_fetch_assoc($offerResult)) {
+                          $offers[] = $row;
+                                     }
+                      echo json_encode($offers);
+                  } else {
+                      echo json_encode(array("message" => "No offers found"));
+                  }
+          }elseif ($table == "trip_members") {
+    $trip_id = isset($_GET['trip_id']) ? mysqli_real_escape_string($conn, $_GET['trip_id']) : "";
+                        $registrationlist = "SELECT * FROM trip_members where trip_id = '$trip_id'";
+
                         $registrationResult = mysqli_query($conn, $registrationlist);
                         if ($registrationResult && mysqli_num_rows($registrationResult) > 0) {
                             $registrations = array();
@@ -49,87 +65,122 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                        exit;
                    }
 }
+ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+     $data = json_decode(file_get_contents("php://input"));
+    $trip_id = uniqid();
 
-else if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Handle the insert/update/delete actions
-   $data = json_decode(file_get_contents("php://input"));
+     $trip_name = mysqli_real_escape_string($conn, $data->trip_name);
+     $trip_type = mysqli_real_escape_string($conn, $data->trip_type);
+     $location = mysqli_real_escape_string($conn, $data->location);
+     $from_date = mysqli_real_escape_string($conn, $data->from_date);
+     $to_date = mysqli_real_escape_string($conn, $data->to_date);
+     $budget = mysqli_real_escape_string($conn, $data->budget);
+     $members = mysqli_real_escape_string($conn, $data->members);
+     $uid = mysqli_real_escape_string($conn, $data->uid);
+     $trip_id = mysqli_real_escape_string($conn, $data->trip_id);
+     $received_amount = mysqli_real_escape_string($conn, $data->received_amount);
+     $createdOn = mysqli_real_escape_string($conn, $data->createdOn);
 
-   $trip_name = mysqli_real_escape_string($conn, $data->trip_name);
-   $location = mysqli_real_escape_string($conn, $data->location);
-   $from_date = mysqli_real_escape_string($conn, $data->from_date);
-   $to_date = mysqli_real_escape_string($conn, $data->to_date);
-   $budget = mysqli_real_escape_string($conn, $data->budget);
-   $no_of_members = mysqli_real_escape_string($conn, $data->no_of_members);
+     // Assuming your 'trip_creation' table has columns similar to below
+     $insertTripQuery = "INSERT INTO `trip_creation`(`trip_type`, `trip_name`, `location`, `from_date`, `to_date`, `budget`, `members`, `uid`, `trip_id`, `received_amount`, `createdOn`)
+                        VALUES ('$trip_type','$trip_name','$location','$from_date','$to_date','$budget','$members','$uid','$trip_id','$received_amount','$createdOn')";
 
-       $insertUserQuery = "INSERT INTO `trip_creation`(`trip_name`, `location`, `from_date`, `to_date`, `budget`, `no_of_members`)
-      VALUES ('$trip_name','$location','$from_date','$to_date','$budget', '$no_of_members')";
+     $insertTripResult = mysqli_query($conn, $insertTripQuery);
 
-      $arr = [];
-      $insertUserResult = mysqli_query($conn, $insertUserQuery);
-      if($insertUserResult) {
-         $arr["Success"] = true;
-      } else {
-         $arr["Success"] = false;
-      }
-      echo json_encode($arr);
+     if ($insertTripResult) {
+         // If the trip insertion was successful, insert member data
+         if (isset($data->members_data)) {
+             foreach ($data->members_data as $member) {
+                 $member_name = mysqli_real_escape_string($conn, $member->name);
+                 $mobile = mysqli_real_escape_string($conn, $member->mobile);
+                 $amount = mysqli_real_escape_string($conn, $member->amount);
 
-}
+                 // Assuming your 'trip_members' table has columns similar to below
+                 $insertMemberQuery = "INSERT INTO `trip_members`(`trip_id`, `member_name`, `mobile`, `amount`)
+                                       VALUES ('$trip_id','$member_name','$mobile','$amount')";
+                 $insertMemberResult = mysqli_query($conn, $insertMemberQuery);
 
-else if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
+                 if (!$insertMemberResult) {
+                     echo json_encode(array("Success" => false, "message" => "Failed to insert member data"));
+                     exit();
+                 }
+             }
+         }
+
+         echo json_encode(array("Success" => true));
+     } else {
+         echo json_encode(array("Success" => false, "message" => "Failed to insert trip data"));
+     }
+ }
+
+
+if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
     $data = json_decode(file_get_contents("php://input"));
 
-    // Check if block_status is provided
-    if(isset($data->block_status)) {
-        $ID = mysqli_real_escape_string($conn, $data->ID);
-        $block_status = mysqli_real_escape_string($conn, $data->block_status);
+    // Assuming the unique trip_id is provided in the incoming data
+    $trip_id = mysqli_real_escape_string($conn, $data->trip_id);
+    // Escape and retrieve data from JSON object
+    $trip_name = mysqli_real_escape_string($conn, $data->trip_name);
+    $trip_type = mysqli_real_escape_string($conn, $data->trip_type);
+    $location = mysqli_real_escape_string($conn, $data->location);
+    $from_date = mysqli_real_escape_string($conn, $data->from_date);
+    $to_date = mysqli_real_escape_string($conn, $data->to_date);
+    $budget = mysqli_real_escape_string($conn, $data->budget);
+    $members = mysqli_real_escape_string($conn, $data->members);
+    $received_amount = mysqli_real_escape_string($conn, $data->received_amount);
+    $uid = mysqli_real_escape_string($conn, $data->uid);
+    $createdOn = mysqli_real_escape_string($conn, $data->createdOn);
 
-        $updateBlockStatusQuery = "UPDATE `offers` SET `block_status`='$block_status' WHERE `ID`='$ID'";
-        $updateBlockStatusResult = mysqli_query($conn, $updateBlockStatusQuery);
+    // Update the trip data based on the provided trip_id
+    $updateTripQuery = "UPDATE `trip_creation` SET `trip_type`='$trip_type', `trip_name`='$trip_name', `location`='$location', `from_date`='$from_date', `to_date`='$to_date', `budget`='$budget', `members`='$members', `received_amount`='$received_amount',`uid`='$uid', `createdOn`='$createdOn' WHERE `trip_id`='$trip_id'";
 
-        if ($updateBlockStatusResult) {
-            echo "Offer blocked/unblocked successfully";
-        } else {
-            echo "Error: " . mysqli_error($conn);
+    $updateTripResult = mysqli_query($conn, $updateTripQuery);
+
+    if ($updateTripResult) {
+        // If the trip update was successful, update member data
+        if (isset($data->members_data)) {
+            foreach ($data->members_data as $member) {
+                $member_name = mysqli_real_escape_string($conn, $member->name);
+                $mobile = mysqli_real_escape_string($conn, $member->mobile);
+                $amount = mysqli_real_escape_string($conn, $member->amount);
+                $id = mysqli_real_escape_string($conn, $member->id);
+
+                // Update member data based on the provided trip_id
+                $updateMemberQuery = "UPDATE `trip_members` SET `member_name`='$member_name', `mobile`='$mobile', `amount`='$amount' WHERE `trip_id`='$trip_id' AND `id`='$id'";
+
+                $updateMemberResult = mysqli_query($conn, $updateMemberQuery);
+
+                if (!$updateMemberResult) {
+                    echo json_encode(array("Success" => false, "message" => "Failed to update member data"));
+                    exit();
+                }
+            }
         }
+
+        echo json_encode(array("Success" => true));
     } else {
-        // Handle the insert/update actions for editing an offer
-        $name = mysqli_real_escape_string($conn, $data->name);
-        $discount = mysqli_real_escape_string($conn, $data->discount);
-        $ID = mysqli_real_escape_string($conn, $data->ID);
-        $offer_type = mysqli_real_escape_string($conn, $data->offer_type);
-        $validity = mysqli_real_escape_string($conn, $data->validity);
-
-        $updateOfferQuery = "UPDATE `offers` SET `offer_type`='$offer_type', `name`='$name', `discount`='$discount', `validity`='$validity' WHERE `ID`='$ID'";
-        $updateOfferResult = mysqli_query($conn, $updateOfferQuery);
-
-        if ($updateOfferResult) {
-            echo "Offer updated successfully";
-        } else {
-            echo "Error: " . mysqli_error($conn);
-        }
+        echo json_encode(array("Success" => false, "message" => "Failed to update trip data"));
     }
 }
+if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+     $data = json_decode(file_get_contents("php://input"));
 
-else if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
-    $ID = isset($_GET['ID']) ? $_GET['ID'] : null;
+     if (isset($data->trip_id)) {
+         $trip_id = $data->trip_id;
 
-    if (!$ID) {
-        echo json_encode(array("error" => "ID is missing in the request"));
-        exit;
-    }
+         // Delete query for removing data based on incomeId from both tables
+         $query = "DELETE FROM trip_creation WHERE trip_id = '$trip_id';";
+         //$query .= "DELETE FROM add_credit WHERE incomeId = '$incomeId';";
 
-    $ID = mysqli_real_escape_string($conn, $ID);
-
-    $sql = "DELETE FROM offers WHERE ID = '$ID'";
-    $result = $conn->query($sql);
-
-    if ($result === false) {
-        echo json_encode(array("error" => "Query failed: " . $conn->error));
-    } else {
-        echo json_encode(array("message" => "Offer deleted successfully"));
-    }
+         if (mysqli_multi_query($conn, $query)) {
+             echo json_encode(array("message" => "Data deleted successfully"));
+         } else {
+             echo json_encode(array("error" => "Failed to delete data"));
+         }
+     } else {
+         echo json_encode(array("error" => "Income ID is missing"));
+     }
 }
-
 
 mysqli_close($conn);
 ?>

@@ -1,328 +1,453 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'package:animated_text_kit/animated_text_kit.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
 
 import 'DashBoard.dart';
-import 'MonthlyBudget2.dart';
 import 'dailyExpences.dart';
 
 class DailyDashboard extends StatefulWidget {
-  const DailyDashboard({Key? key}) : super(key: key);
+  final String remainingAmount;
+
+  DailyDashboard({
+    Key? key,
+    required this.remainingAmount,
+  }) : super(key: key);
 
   @override
-  _DailyDashboardState createState() => _DailyDashboardState();
+  State<DailyDashboard> createState() => _DailyDashboardState();
 }
 
 class _DailyDashboardState extends State<DailyDashboard> {
   List<Map<String, dynamic>> trips = [];
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final DateTime _fromDate = DateTime.now();
-  final DateTime _toDate = DateTime.now();
+  List<dynamic> _savedDailyExpenses = [];
+  List<dynamic> expenses = [];
+  double remainingAmount = 0;
+  String wallet = '';
 
+  String url =
+      'http://localhost/BUDGET/lib/BUDGETAPI/dailyexpensesdashboard.php';
 
-  final TextEditingController monthlyincome = TextEditingController();
-  final TextEditingController monthlyincomeType = TextEditingController();
+  /// fetchh monthly budget based on content
+  Future<void> fetchExpenses() async {
+    final response = await http.get(Uri.parse(url));
 
+    if (response.statusCode == 200) {
+      setState(() {
+        expenses = json.decode(response.body);
+        print("Expenses Body: $expenses");
+        // readRecords(expenses["incomeId"]);
+      });
+    } else {
+      throw Exception('Failed to load expenses');
+    }
+  }
+
+  ///remaining fetch
+
+  Future<void> readRecords() async {
+    var url =
+        'http://localhost/BUDGET/lib/BUDGETAPI/dailyexpensesdashboard.php';
+
+    var response = await http.get(Uri.parse(url));
+
+    if (response.statusCode == 200) {
+      var data = jsonDecode(response.body);
+      print('Records: $data');
+      // Assign fetched remaining amount to state variable
+      setState(() {
+        remainingAmount = data['sum_remaining'] ?? 0;
+      });
+    } else {
+      print('Failed to fetch records: ${response.body}');
+    }
+  }
+
+  Future<void> updateRecord2(String incomeId) async {
+    String url2 =
+        'http://localhost/BUDGET/lib/BUDGETAPI/dailyexpensesdashboard.php';
+    print(url2);
+
+    var headers = {'Content-Type': 'application/json'};
+
+    // Update backend
+    var response = await http.put(
+      Uri.parse(url2),
+      headers: headers,
+      body: jsonEncode({
+        'incomeId': incomeId,
+        'remaining': widget.remainingAmount,
+        // Include other fields you want to update
+      }),
+    );
+    if (response.statusCode == 200) {
+      print("ResponseStatus: ${response.statusCode}");
+      print("Response: ${response.body}");
+    } else {
+      print('Failed to update record: ${response.body}');
+    }
+  }
+
+  Future<void> createRecord(String uid) async {
+    String url2 =
+        'http://localhost/BUDGET/lib/BUDGETAPI/dailyexpensescalculation.php';
+    print(url2);
+
+    var headers = {'Content-Type': 'application/json'};
+
+    try {
+      var response = await http.post(
+        Uri.parse(url2),
+        headers: headers,
+        body: jsonEncode({
+          'uid': uid,
+          'wallet': widget.remainingAmount,
+          // Include other fields you want to update
+        }),
+      );
+      if (response.statusCode == 200) {
+        print(url2);
+        print("ResponseStatus: ${response.statusCode}");
+        print("Response: ${response.body}");
+      } else {
+        print('Failed to update record: ${response.body}');
+      }
+    } catch (e) {
+      print('Error: $e');
+    }
+  }
+
+  ///wallet fetch
+
+  Future<void> getwallet(String uid, BuildContext context) async {
+    var url =
+        'http://localhost/BUDGET/lib/BUDGETAPI/dailyexpensescalculation.php';
+    var modifiedUrl = Uri.parse(url).replace(queryParameters: {'uid': uid});
+
+    var response = await http.get(modifiedUrl);
+
+    if (response.statusCode == 200) {
+      print(url);
+      print('uid : $uid');
+
+      // Parse the JSON response as a map directly
+      var responseBody = jsonDecode(response.body);
+
+      if (responseBody is List && responseBody.isNotEmpty) {
+        // Assuming the response is a list of wallet data
+        var firstRecord = responseBody.first;
+        if (firstRecord.containsKey('wallet')) {
+          String walletAmount = firstRecord['wallet'];
+          setState(() {
+            wallet = walletAmount;
+          });
+
+          // Show the alert with wallet amount
+          showWalletAmountAlert(context, walletAmount);
+        } else {
+          print('Wallet data not found in the response');
+        }
+      } else {
+        print('Invalid or empty response format');
+      }
+    } else {
+      print('Failed to fetch records: ${response.body}');
+    }
+  }
+
+  Future<void> showWalletAmountAlert(
+      BuildContext context, String walletAmount) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, // User must tap button to close the dialog
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Wallet Amount'),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text(
+                    'Your current wallet amount is: $walletAmount'), // Display wallet amount in the alert dialog
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text('OK'),
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  //remaining update
+
+  // Function to update remaining field in database for a specific incomeId
+
+  /// Based on Insert
 
   @override
   void initState() {
     super.initState();
-   // _loadDataFromSharedPreferences();
-    fetchDataFromSharedPreferences();
+    fetchExpenses();
+    //readRecords();
+    // readRecords(incomeId)
   }
-  double _totalBudget = 0.0;
-
-  void fetchDataFromSharedPreferences() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String>? incomeIds = prefs.getStringList('totalIncomes');
-    if (incomeIds != null) {
-      for (String incomeId in incomeIds) {
-        String? totalIncome = prefs.getString('$incomeId:totalincome');
-        String? incomeType = prefs.getString('$incomeId:incomeType');
-        String? selectedFromDate = prefs.getString('$incomeId:selectedFromDate');
-        String? selectedToDate = prefs.getString('$incomeId:selectedToDate');
-        if (totalIncome != null && incomeType != null && selectedFromDate != null && selectedToDate != null) {
-          // Calculate total monthly amount for Daily Expenses
-          double totalDailyExpenses = 0;
-          List<String> monthlyExpenses = prefs.getStringList('$incomeId:monthlyexpenses') ?? [];
-          for (String expense in monthlyExpenses) {
-            var parts = expense.split(':');
-            if (parts[0] == 'Daily Expenses') {
-              totalDailyExpenses += double.parse(parts[1]);
-            }
-          }
-
-          setState(() {
-            trips.add({
-              'incomeId': incomeId,
-              'totalIncome': totalIncome,
-              'incomeType': incomeType,
-              'selectedFromDate': selectedFromDate,
-              'selectedToDate': selectedToDate,
-              'totalDailyExpenses': totalDailyExpenses.toStringAsFixed(2), // Convert to string and fix to 2 decimal places
-            });
-          });
-        }
-      }
-    }
-  }
-
-/*
-  void fetchDataFromSharedPreferences() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String>? incomeIds = prefs.getStringList('totalIncomes');
-    if (incomeIds != null) {
-      for (String incomeId in incomeIds) {
-        String? totalIncome = prefs.getString('$incomeId:totalincome');
-        String? incomeType = prefs.getString('$incomeId:incomeType');
-        String? selectedFromDate = prefs.getString('$incomeId:selectedFromDate');
-        String? selectedToDate = prefs.getString('$incomeId:selectedToDate');
-        if (totalIncome != null && incomeType != null && selectedFromDate != null && selectedToDate != null) {
-          setState(() {
-            trips.add({
-              'incomeId': incomeId,
-              'totalIncome': totalIncome,
-              'incomeType': incomeType,
-              'selectedFromDate': selectedFromDate,
-              'selectedToDate': selectedToDate,
-            });
-          });
-        }
-      }
-    }
-  }
-*/
-
-
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.deepPurple.shade50,
-      appBar: PreferredSize(
-        preferredSize: Size.fromHeight(80),
-        child: AppBar(
-          title: Text(
-            "Daily Expensive",
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          leading: IconButton(
-            icon: const Icon(Icons.navigate_before),
-            color: Colors.white,
-            onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const DashBoard()));
-            },
-          ),
-
-          titleSpacing: 00.0,
-          centerTitle: true,
-          toolbarHeight: 60.2,
-          toolbarOpacity: 0.8,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.only(
-              bottomRight: Radius.circular(25),
-              bottomLeft: Radius.circular(25),
+        backgroundColor: Colors.deepPurple.shade50,
+        appBar: PreferredSize(
+          preferredSize: Size.fromHeight(80),
+          child: AppBar(
+            title: Text(
+              "Daily Expenses",
+              style: Theme.of(context).textTheme.titleMedium,
             ),
-          ),
-          elevation: 0.00,
-          backgroundColor: Color(0xFF8155BA),
-
-        ),
-      ),
-      body: Form(
-        key: _formKey,
-        child: Container(
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-
-                SizedBox(height: 5),
-                Visibility(
-                  visible: trips.isNotEmpty,
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Container(
-                      width: double.infinity,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.grey.withOpacity(0.5),
-                            spreadRadius: 3,
-                            blurRadius: 5,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Text(
-                          'Your Budget',
-                          style: Theme.of(context).textTheme.labelMedium,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 5),
-                ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: trips.length,
-                  itemBuilder: (context, index) {
-                    return buildTripContainer(context, trips[index]);
-                  },
-                ),
-              ],
+            leading: IconButton(
+              icon: const Icon(Icons.navigate_before),
+              color: Colors.white,
+              onPressed: () {
+                Navigator.push(context,
+                    MaterialPageRoute(builder: (context) => const DashBoard()));
+              },
             ),
+            actions: [
+              IconButton(
+                onPressed: () {
+                  if (expenses.isNotEmpty) {
+                    // Check if expenses list is not empty
+                    getwallet(expenses[0]['uid'],
+                        context); // Assuming you want to use the first expense's UID
+                  }
+                },
+                icon: const Icon(
+                  Icons.wallet_rounded,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+            titleSpacing: 0.0,
+            centerTitle: true,
+            toolbarHeight: 60.2,
+            toolbarOpacity: 0.8,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.only(
+                bottomRight: Radius.circular(25),
+                bottomLeft: Radius.circular(25),
+              ),
+            ),
+            elevation: 0.0,
+            backgroundColor: Color(0xFF8155BA),
           ),
         ),
-      ),
-    );
+        body: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Container(
+            child: ListView.builder(
+              itemCount: expenses.length,
+              itemBuilder: (BuildContext context, int index) {
+                return buildDashboard(context, expenses[index]);
+              },
+            ),
+          ),
+        ));
   }
 
+  Widget buildDashboard(BuildContext context, Map<String, dynamic> expenses) {
+    bool remainingAmountGreaterThanZero = false; // Default value
+    // Extract toDate and incomeId from expenses
+    String toDate = expenses['toDate'];
+    String incomeId = expenses['incomeId'];
 
-  Set<String> displayedIncomeIds = Set();
+    // Get current date
+    DateTime currentDate = DateTime.now();
+    String formattedCurrentDate = currentDate.toString().split(' ')[0];
+    bool isToDatePastOrCurrent =
+        toDate.compareTo(formattedCurrentDate) <= 0; // Format: YYYY-MM-DD
 
-  Widget? buildTripContainer(BuildContext context, Map<String, dynamic> trip) {
- /*   if (displayedIncomeIds.contains(trip['incomeId'])) {
-      // Return an empty container if incomeId is already displayed
-      return Container();
-    }*/
+    // Check if toDate is equal to current date
 
-    displayedIncomeIds.add(trip['incomeId']); // Add the incomeId to the set
-
-    if (trip['totalDailyExpenses'] == '0.00') {
-      // Return null if totalDailyExpenses is 0
-      return null;
+    try {
+      double remainingAmountValue = double.parse(widget.remainingAmount);
+      remainingAmountGreaterThanZero = remainingAmountValue > 0;
+    } catch (e) {
+      print('Error parsing remaining amount: $e');
     }
-
-    final fromDate = parseDate(trip['selectedFromDate']);
-    final toDate = parseDate(trip['selectedToDate']);
-
-    final fromFormatted = DateFormat('MMM dd').format(fromDate);
-    final toFormatted = DateFormat('MMM dd, yyyy').format(toDate);
-
-    final dateRange = '$fromFormatted → $toFormatted';
 
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ExpensePage(
-              incomeId: trip['incomeId'],
-            ),
-          ),
-        );
-      },
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Container(
-          width: 350,
-          margin: EdgeInsets.all(8.0),
-          padding: EdgeInsets.all(8.0),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(5),
-            border: Border.all(color: Color(0xFF8155BA), width: 1),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.5),
-                spreadRadius: 3,
-                blurRadius: 5,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
+      onTap: isToDatePastOrCurrent
+          ? null // Disable onTap if toDate is current date
+          : () {
+              String incomeId =
+                  expenses['incomeId']; // Extract incomeId from expenses
+              // readRecords(incomeId); // Pass incomeId to readRecords function
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => ExpensePage(
+                            incomeId: expenses['incomeId'],
+                            amount: expenses['totalAmount'],
+                            fromdate: expenses['fromDate'],
+                            todate: expenses['toDate'],
+                            uid: expenses['uid'],
+                          )));
+            },
+      child: Card(
+        child: ListTile(
+          title: Text('Category: ${expenses['category']}'),
+          subtitle: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(height: 5,),
-                      RichText(
-                        text: TextSpan(
-                          children: [
-                            TextSpan(
-                              text: 'Daily Expenses: ₹',
-                              style: Theme.of(context).textTheme.labelMedium,
-                            ),
-                            TextSpan(
-                              text: trip['totalDailyExpenses'] ?? '0.00', // Default to 0.00 if not available
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                 /* Padding(
-                    padding: const EdgeInsets.only(left: 20),
-                    child: Text('Income ID: ${trip['incomeId']}', style: Theme.of(context).textTheme.labelMedium),
-                  ),*/
-                  Padding(
-                    padding: const EdgeInsets.only(left: 20),
-                    child: Text('$dateRange', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blue)),
-                  ),
+                  Text('Amount: ${expenses['totalAmount']}'),
+                  Text('From Date: ${expenses['fromDate']}'),
+                  Text('To Date: ${expenses['toDate']}'),
+                  // Text('UID: ${expenses['uid']}'),
+                  // Text('IncomeID:${expenses['incomeId']}')
                 ],
               ),
-            /*  SizedBox(height: 5,),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(height: 5,),
-                      RichText(
-                        text: TextSpan(
-                          children: [
-                            TextSpan(
-                              text: 'Daily Expenses: ₹',
-                              style: Theme.of(context).textTheme.labelMedium,
+              isToDatePastOrCurrent
+                  ? PopupMenuButton(
+                      itemBuilder: (BuildContext context) {
+                        // Format: YYYY-MM-DD
+                        // Conditionally build PopupMenuItem based on remaining amount
+                        if (isToDatePastOrCurrent) {
+                          return [
+                            const PopupMenuItem(
+                              child: Text("Edit"),
+                              value: "Edit",
                             ),
-                            TextSpan(
-                              text: trip['totalDailyExpenses'] ?? '0.00', // Default to 0.00 if not available
-                              style: Theme.of(context).textTheme.bodySmall,
+                            const PopupMenuItem(
+                              child: Text("Close Month"),
+                              value: "MonthClose",
                             ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),*/
-              //SizedBox(height: 5,)
+                          ];
+                        } else {
+                          return [
+                            const PopupMenuItem(
+                              child: Text("Close Month"),
+                              value: "MonthClose",
+                            ),
+                          ];
+                        }
+                      },
+                      onSelected: (value) async {
+                        updateRecord2(expenses['incomeId']);
+                        //createRecord(expenses['uid']);
+                        // Update remaining field in database for this incomeI
+                        if (value == "Edit") {
+                          Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => ExpensePage(
+                                        incomeId: expenses['incomeId'],
+                                        amount: expenses['totalAmount'],
+                                        fromdate: expenses['fromDate'],
+                                        todate: expenses['toDate'],
+                                        uid: expenses['uid'],
+                                      )));
+                        } else if (value == "MonthClose") {
+                          showDialog(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return AlertDialog(
+                                title: const Text("Confirm Close"),
+                                content: const Text(
+                                    "Are you sure you want to Close this Budget?"),
+                                actions: <Widget>[
+                                  TextButton(
+                                    child: Text("Cancel"),
+                                    onPressed: () {
+                                      Navigator.of(context).pop();
+                                    },
+                                  ),
+                                  TextButton(
+                                    child: const Text("Close"),
+                                    onPressed: () async {
+                                      try {
+                                        var response = await http.put(
+                                          Uri.parse(
+                                              'http://localhost/BUDGET/lib/BUDGETAPI/updatestatus.php'),
+                                          headers: <String, String>{
+                                            'Content-Type':
+                                                'application/json; charset=UTF-8',
+                                          },
+                                          body: jsonEncode(<String, dynamic>{
+                                            'incomeId': expenses['incomeId'],
+                                            'fromDate': expenses[
+                                                'fromDate'], // Include fromDate
+                                            'toDate': expenses[
+                                                'toDate'], // Include toDate
+                                          }),
+                                        );
+                                        if (response.statusCode == 200) {
+                                          var statusResponse = await http.put(
+                                            Uri.parse(
+                                                'http://localhost/BUDGET/lib/BUDGETAPI/updatestatus.php'), // Replace with your PHP endpoint to update status
+                                            headers: <String, String>{
+                                              'Content-Type':
+                                                  'application/json; charset=UTF-8',
+                                            },
+                                            body: jsonEncode({
+                                              'incomeId': expenses['incomeId'],
+                                              'fromDate': expenses[
+                                                  'fromDate'], // Include fromDate
+                                              'toDate': expenses['toDate'],
+                                              'status': 'closed',
+                                            }),
+                                          );
+                                          if (statusResponse.statusCode ==
+                                              200) {
+                                            print(
+                                                "Response Body: ${response.body}");
+                                            print(
+                                                "Response Status: ${response.statusCode}");
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    DailyDashboard(
+                                                        remainingAmount: ''),
+                                              ),
+                                            );
+                                          } else {
+                                            print('Failed to update status.');
+                                          }
+                                        } else {
+                                          print('Failed to update data.');
+                                        }
+                                        Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                                builder: (context) =>
+                                                    DailyDashboard(
+                                                        remainingAmount: '')));
+                                      } catch (e) {
+                                        print('Error closing month: $e');
+                                      }
+                                    },
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                          // Handle MonthClose action if needed
+                        }
+                      },
+                    )
+                  : SizedBox(),
             ],
           ),
         ),
       ),
     );
   }
-
-  DateTime parseDate(String dateStr) {
-    // Try parsing date with different formats
-    List<String> formats = [
-      'dd-MM-yyyy',
-      'dd/MM/yyyy',
-      'yyyy-MM-dd',
-      'yyyy/MM/dd',
-    ];
-    for (var format in formats) {
-      try {
-        return DateFormat(format).parseStrict(dateStr);
-      } catch (e) {
-        continue;
-      }
-    }
-    throw ArgumentError("Invalid date format: $dateStr");
-  }
-
 }

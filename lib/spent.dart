@@ -1,33 +1,32 @@
+import 'dart:convert';
 import 'package:bottom_bar_matu/bottom_bar_matu.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:mybudget/tripdashboard.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+//import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simple_icons/simple_icons.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
 
+import 'package:provider/provider.dart';
 
-import 'TripView.dart';
+//import 'addMemberamount.dart';
 
 class SpentDetails extends StatefulWidget {
-
-  final String budget;
-  final String tripId;
-  final String tripid;
   final String members;
+  final String budget;
+  final String tripid;
+  final String tripname;
   final String receivedamnt;
-  final List<Map<String, String>> expenses;
-  final List<Map<String, String>> expenses2;
 
   SpentDetails({super.key,
     required this.budget,
     required this.tripid,
-    required this.tripId,
     required this.members,
-    required this.expenses,
-    required this.expenses2,
+    required this.tripname,
     required this.receivedamnt,
   });
 
@@ -38,56 +37,128 @@ class SpentDetails extends StatefulWidget {
 class _SpentDetailsState extends State<SpentDetails> {
   List<Map<String, dynamic>> trips = [];
   List<Map<String, TextEditingController>> spentexpenses = [];
+  TextEditingController _amountController = TextEditingController();
+  TextEditingController editremark = TextEditingController();
   List<Map<String, String>> submittedItems = []; // List to hold submitted items
   double totalBudget = 0.0; // Track whether the user is adding a spentcategory
   bool istextfield = false;
   List<String> notesList = [];
   String? errormsg = '';
-  TextEditingController _noteController = TextEditingController();
+  String _selectedExpenseIndex = '-1';
+  bool _isVisible = false;
+  String? _selectedId;
+  String? _selectedCategory;
+  TextEditingController editdate = TextEditingController();
 
+  final TextEditingController monthlyincome = TextEditingController();
 
+  //save spent
+  Map<String, dynamic> trip = {};
+  List<Map<String, dynamic>> tripData = [];
+  List<dynamic> _tripExpenses = [];
+  List<Map<String, dynamic>> _categories = [
+    {'name': 'Bus Fair', 'icon': Icons.directions_bus},
+    {'name': 'Clothing', 'icon': Icons.shopping_bag},
+    {'name': 'Education', 'icon': Icons.school},
+    {'name': 'Entertainment', 'icon': Icons.local_movies},
+    {'name': 'Fuel', 'icon': Icons.local_gas_station},
+    {'name': 'Gifts', 'icon': Icons.card_giftcard},
+    {'name': 'Groceries', 'icon': Icons.shopping_cart},
+    {'name': 'Health', 'icon': Icons.local_hospital},
+    {'name': 'Restaurant', 'icon': Icons.restaurant},
+    {'name': 'Snacks', 'icon': Icons.fastfood},
+    {'name': 'Tea', 'icon': Icons.local_drink},
+    {'name': 'Travel', 'icon': Icons.flight},
+    {'name': 'Utilities', 'icon': Icons.settings},
+    {'name': 'Other', 'icon': Icons.category},
+  ];
 
-  void _loadDataFromSharedPreferences(String tripId) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
+  String url = 'http://localhost/BUDGET/lib/BUDGETAPI/trip_spent.php';
+  Future<void> readRecords(String trip_id) async {
+    var url =
+        'http://localhost/BUDGET/lib/BUDGETAPI/trip_spent.php'; // Replace with your actual URL
+    var modifiedUrl =
+    Uri.parse(url).replace(queryParameters: {'trip_id': trip_id});
 
-    List<Map<String, dynamic>> tempTrips = [];
+    var response = await http.get(modifiedUrl);
 
-    String expensesKey = '$tripId:spentexpenses';
-    List<String>? expensesList = prefs.getStringList(expensesKey);
-    List<Map<String, String>> spentexpenses = [];
-
-    if (expensesList != null) {
-      spentexpenses = expensesList.map((spentexpense) {
-        List<String> parts = spentexpense.split(':');
-        return {
-          'spentcategory': parts[0],
-          'spentamount': parts[1],
-          'date': parts[2], // Add date field here
-          'remarks': parts[3],
-        };
-      }).toList();
+    if (response.statusCode == 200) {
+      setState(() {
+        _tripExpenses = jsonDecode(response.body);
+      });
+    } else {
+      print('Failed to fetch records: ${response.body}');
     }
-
-    // Load 'notesList' from SharedPreferences
-    List<String>? savedNotes = prefs.getStringList('$tripId:notes') ?? [];
-    double totalSpent = prefs.getDouble('$tripId:totalSpent') ?? 0.0;
-    double remaining = prefs.getDouble('$tripId:remaining') ?? 0.0;
-    double debit = prefs.getDouble('$tripId:debit') ?? 0.0;
-    // Replace 'totalBudget' with the actual variable that holds the total budget
-    tempTrips.add({
-      'totalBudget': totalBudget.toString(), // Replace with the actual variable
-      'expenses': spentexpenses,
-      'notesList': savedNotes,
-      'totalSpent': totalSpent,
-      'remaining': remaining,
-      'debit': debit,
-    });
-
-    // Ensure 'trips' is initialized before setting the state
-    setState(() {
-      trips = tempTrips;
-    });
   }
+
+  List<Map<String,dynamic>> spentData=[];
+
+  Future<void> fetchTSpent() async {
+    try {
+      print("trip Id:${widget.tripid}");
+      final url = Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/Trip.php?table=trip_spent&trip_id=${widget.tripid}');
+      final response = await http.get(url);
+      print("id members URL :$url" );
+      print("M response.statusCode :${response.statusCode}" );
+      print("M response .body :${response.body}" );
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        if (responseData is List<dynamic>) {
+          setState(() {
+            spentData = responseData.cast<Map<String, dynamic>>();
+            print("spentdata:$spentData");
+          });
+        } else {
+          print('Invalid response data format');
+        }
+      } else {
+        // Handle non-200 status code
+        print('Error: ${response.statusCode}');
+      }
+    } catch (error) {
+      // Handle other errors
+      print('Error: $error');
+    }
+  }
+
+  void savespentdata(List<dynamic> spentexpenses, String tripid) async {
+    final url = Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/trip_spent.php');
+    // Extract data from TextEditingController objects and create a new list of Map
+    List<Map<String, dynamic>> expenseDataList = [];
+
+    for (var expense in spentexpenses) {
+      Map<String, dynamic> expenseData = {
+        'date': expense['date'].text,
+        'category': expense['spentcategory'].text,
+        'amount': expense['spentamount'].text,
+        'remark': expense['remarks'].text,
+      };
+      expenseDataList.add(expenseData);
+    }
+    // Make POST request
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'tripspent': expenseDataList,
+        'uid': "7",
+        'trip_id': tripid,
+      }),
+    );
+
+    // Check if request was successful
+    if (response.statusCode == 200) {
+      print("Response Status: ${response.statusCode}");
+      print("Response body: ${response.body}");
+      print('Data sent successfully!');
+    } else {
+      print('Failed to send data. Error: ${response.statusCode}');
+    }
+  }
+
+
 
   List<Widget> expenseWidgets = [];
 
@@ -137,60 +208,6 @@ class _SpentDetailsState extends State<SpentDetails> {
     return totalSpentAmount;
   }
 
-  void _saveDataToSharedPreferences(String remainingBudgetString, String debitBudgetString) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-
-    String tripId = widget.tripid;
-
-    // Retrieve existing data
-    List<String> tripIds = prefs.getStringList('tripIds') ?? [];
-    Map<String, double> expensesMap = Map<String, double>.from(
-        prefs.getStringList('$tripId:spentexpenses')?.fold({}, (prev, element) {
-          var parts = element.split(':');
-          prev?[parts[0]] = double.parse(parts[1]);
-          return prev;
-        }) ??
-            {});
-
-    // Retrieve existing notes
-    List<String>? savedNotes = prefs.getStringList('$tripId:notes') ?? [];
-
-    // Update or add new data
-    prefs.setString('$tripId:totalBudget', totalBudget.toString());
-
-    List<Map<String, String>> formattedExpenses = spentexpenses.map((expense) {
-      return {
-        'spentcategory': expense['spentcategory']!.text,
-        'spentamount': expense['spentamount']!.text,
-        'date': expense['date']!.text,
-        'remarks': expense['remarks']!.text
-      };
-    }).toList();
-
-    List<String> existingExpenses =
-        prefs.getStringList('$tripId:spentexpenses') ?? [];
-    existingExpenses.addAll(formattedExpenses.map((e) =>
-    "${e['spentcategory']}:${e['spentamount']}:${e['date']}:${e['remarks']}"));
-
-    prefs.setStringList('$tripId:spentexpenses', existingExpenses);
-
-    // Save notes
-    if (notesList.isNotEmpty) {
-      savedNotes.addAll(notesList);
-      prefs.setStringList('$tripId:notes', savedNotes);
-    }
-
-    if (!tripIds.contains(tripId)) {
-      tripIds.add(tripId);
-      prefs.setStringList('tripIds', tripIds);
-    }
-    prefs.setDouble('$tripId:totalSpent',
-        double.parse(totalspentBudget.toStringAsFixed(2)));
-    prefs.setDouble('$tripId:remaining', double.parse(remainingBudgetString));
-    prefs.setDouble('$tripId:debit', double.parse(debitBudgetString));
-    print("notesList$notesList");
-    print('Income ID: $tripIds');
-  }
 
   double totalspentbudget2 = 0.0;
   double totalspentBudget = 0.0;
@@ -298,6 +315,7 @@ class _SpentDetailsState extends State<SpentDetails> {
 
   TextEditingController spentCategoryController = TextEditingController();
   TextEditingController spentAmountController = TextEditingController();
+  TextEditingController categoryEdit = TextEditingController();
   double totalSpentAmount = 0.0;
 
   ///debit calculation
@@ -313,64 +331,121 @@ class _SpentDetailsState extends State<SpentDetails> {
     }
   }
 
-  void _deleteExpense(int tripIndex, int expenseIndex) {
-    setState(() {
-      trips[tripIndex]['expenses'].removeAt(expenseIndex);
-    });
-    _updateBackendData();
-  }  /// This for Delete coding
-
-  void _updateBackendData() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String tripId = widget.tripid;
-
-    // Convert the updated expenses list to a format suitable for SharedPreferences
-    List<String> updatedExpenses = trips
-        .map<List<String>>((trip) => trip['expenses']
-        .map<String>((expense) =>
-    "${expense['spentcategory']}:${expense['spentamount']}:${expense['date']}:${expense['remarks']}")
-        .toList())
-        .expand<String>((x) => x)
-        .toList();
-
-    // Update the expenses data in SharedPreferences
-    prefs.setStringList('$tripId:spentexpenses', updatedExpenses);
-  }  /// this for after delete using Update coding
 
   List<Map<String, TextEditingController>> expenses2 = [];
 
-  void _loadDataForTrip() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String personsKey = '${widget.tripid}:persons';
 
-    setState(() {
-      List<String>? personsList = prefs.getStringList(personsKey);
-      expenses2 = personsList!.map((person) {
-        List<String> parts = person.split(':');
-        print(expenses2);
+  ///delele and update
+  Future<void> delete(String id) async {
+    try {
+      final url = Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/trip_spent.php?id=$id');
+      final response = await http.delete(url);
+      print("Delete Url: $url");
+      if (response.statusCode == 200) {
+        Navigator.push(context, MaterialPageRoute(builder: (context)=>SpentDetails(
+          budget: widget.budget,
+          tripname: widget.tripname,
+          tripid: widget.tripid,
+          members: widget.members,
+          receivedamnt: widget.members,
+        )));
+      }
+      else {
+        // Error handling, e.g., show an error message
+        print('Error: ${response.statusCode}');
+      }
+    }
+    catch (e) {
+      // Handle network or server errors
+      print('Error making HTTP request: $e');
+    }
+  }
 
-        return {
-          'name': TextEditingController(text: parts[0]),
-          'perAmount': TextEditingController(text: parts[1]),
-        };
-      }).toList() ;
-    });
+  Future<void> editExpense(int id) async {
+    try {
+      final url = Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/trip_spent.php');
+      print("Update url: $url");
+      final response = await http.put(
+        url,
+        body: jsonEncode({
+          "date": editdate.text,
+          "categories": categoryEdit.text,
+          "amount": _amountController.text,
+          "remark": editremark.text,
+          "id": id,
+        }),
+      );
+      print("U Response Status: ${response.statusCode}");
+      print("U Response Body: ${response.body}");
+      if (response.statusCode == 200) {
+        print("Response Status: ${response.statusCode}");
+        print("Response Body: ${response.body}");
+        // Navigator.push(context, MaterialPageRoute(builder: (context) => const NewMemberApproval()));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Successfully Edited")));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Failed to Edit")));
+      }
+    } catch (e) {
+      print("Error during signup: $e");
+      // Handle error as needed
+    }
+  }
+
+  String totalSpent = ''; // State variable to hold the total spent amount
+  String remaining = '';
+  void fetchTotalSpent(String trip_id) async {
+    final url = Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/spentcalculation.php?trip_id=$trip_id');
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      double monthlyIncomeAmount = double.parse(widget.receivedamnt);
+      double totalSpentAmount = double.parse(data['totalSpent']);
+      double remainingAmount = monthlyIncomeAmount - totalSpentAmount;
+      //  Provider.of<RemainingAmountProvider>(context, listen: false).updateRemaining(remainingAmount.toStringAsFixed(2));
+      setState(() {
+        totalSpent = totalSpentAmount.toStringAsFixed(2);
+        remaining = remainingAmount.toStringAsFixed(2);
+      });
+    } else {
+      print('Failed to fetch total spent. Error: ${response.statusCode}');
+    }
   }
 
   int index = 0;
   @override
   void initState() {
     super.initState();
+    fetchTSpent();
+    fetchTotalSpent(widget.tripid);
+    // readRecords(widget.tripid);
     print(widget.members);
-    _loadDataFromSharedPreferences(widget.tripid);
     _addspentcategoryField();
     updatetotalspent();
     _updateTotalBudget();
-    _loadDataForTrip();
+  }
+  double _calculateTotalBudget(List monthly) {
+    double totalBudgetAmount = 0.0;
+    for (var month in monthly) {
+      if (month.containsKey('expenses') && month['expenses'] is List) {
+        for (var expense in month['expenses']) {
+          totalBudgetAmount += (expense['monthlyamount'] ?? 0).toDouble();
+        }
+      }
+    }
+
+    return totalBudgetAmount;
   }
 
+  String capitalizeFirstLetter(String text) {
+    if (text.isEmpty) return text;
+    return text.substring(0, 1).toUpperCase() + text.substring(1);
+  }
   @override
   Widget build(BuildContext context) {
+
+    double totalBudgetAmount = _calculateTotalBudget(trips);
+    double remainingOrDebit = (double.tryParse(monthlyincome.text.toString()) ?? 0.0) - totalBudgetAmount;
     double receivedAmount = double.parse(widget.receivedamnt);
 
     double remainingBudget =
@@ -391,18 +466,7 @@ class _SpentDetailsState extends State<SpentDetails> {
 
     double members = double.parse(widget.members);
 
-// Calculate results with a fallback value of 0.0 in case members is zero
-    double results = members != 0.0 ? remainingBudget / members : 0.0;
 
-    String formattedResults = results.toStringAsFixed(2);
-
-    String debitBudgetString = debitBudget.toStringAsFixed(2);
-
-    double debitresults = members != 0.0 ? debitBudget / members : 0.0;
-    // String debitBudgetString = debitBudget.toStringAsFixed(2);
-
-    // Define a map to store aggregated spending amounts based on categories
-    // Define a map to store aggregated spending amounts based on categories
     Map<String, double> aggregatedData = {};
 
     for (var i = 0; i < trips.length; i++) {
@@ -430,305 +494,17 @@ class _SpentDetailsState extends State<SpentDetails> {
           style: Theme.of(context).textTheme.displayLarge,
         ),
         actions: [
+
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Visibility(
-              visible: (double.parse(widget.receivedamnt) -
-                  calculateTotalSpentAmount(trips)) >=
-                  0,
-              child: GestureDetector(
-                onTap: () {
-                  // Calculate remaining budget per member
-                  double remainingBudgetPerMember =
-                      (double.parse(widget.receivedamnt) -
-                          calculateTotalSpentAmount(trips)) /
-                          int.parse(widget.members);
-
-                  // Show alert box here
-                  // Show alert box here
-                  // Show alert box here
-                  showDialog(
-                    context: context,
-                    builder: (BuildContext context) {
-                      double totalReceivedAmount = double.parse(widget.receivedamnt);
-                      double totalSpentAmount = calculateTotalSpentAmount(trips);
-                      double remainingAmount = totalReceivedAmount - totalSpentAmount;
-                      int numberOfMembers = int.parse(widget.members);
-                      double perPersonSpend = totalSpentAmount / numberOfMembers;
-                      double perPersonRemaining = remainingAmount / numberOfMembers;
-
-                      // Get the list of members and their received amounts
-                      List<Map<String, dynamic>> membersData = List<Map<String, dynamic>>.from(widget.expenses2);
-
-                      // Calculate the return amount for each member
-                      List<Map<String, dynamic>> returnAmounts = [];
-                      double totalReturnAmount = 0;
-                      for (var memberData in membersData) {
-                        double receivedAmount = double.tryParse(memberData['perAmount']) ?? 0;
-                        double returnAmount = perPersonSpend - receivedAmount;
-                        returnAmounts.add({
-                          'name': memberData['name'],
-                          'receivedAmount': receivedAmount,
-                          'returnAmount': returnAmount,
-                        });
-                        totalReturnAmount += returnAmount;
-                      }
-
-                      return AlertDialog(
-                        title: Text("Remaining Details"),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.zero,
-                          side: BorderSide(color: Colors.deepPurple),
-                        ),
-                        content: Container(
-                          width: double.maxFinite,
-                          child: SingleChildScrollView(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Received: ₹${totalReceivedAmount.toStringAsFixed(2)}'),
-                                Text('Total Spent: ₹${totalSpentAmount.toStringAsFixed(2)}'),
-                                Text('Spent per head: ₹${perPersonSpend.toStringAsFixed(2)}'),
-                                Text('Remaining: ₹${remainingAmount.toStringAsFixed(2)}'),
-                                Text("Members: $numberOfMembers"),
-                                SizedBox(height: 10),
-                                Table(
-                                  border: TableBorder.all(),
-                                  columnWidths:  {
-                                    0: FlexColumnWidth(2),
-                                    1: FlexColumnWidth(2),
-                                    2: FlexColumnWidth(2),
-                                  },
-                                  children: [
-                                    TableRow(
-                                      children: [
-                                        TableCell(
-                                          child: Padding(
-                                            padding: EdgeInsets.all(8.0),
-                                            child: Text('Name'),
-                                          ),
-                                        ),
-                                        TableCell(
-                                          child: Padding(
-                                            padding: EdgeInsets.all(8.0),
-                                            child: Text('Received ₹'),
-                                          ),
-                                        ),
-                                        TableCell(
-                                          child: Padding(
-                                            padding: EdgeInsets.all(8.0),
-                                            child: Text(remainingAmount == 0.00 ? 'Balance ₹' : 'Return ₹'),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    // Generate rows based on return amounts
-                                    for (var returnData in returnAmounts)
-                                      TableRow(
-                                        children: [
-                                          TableCell(
-                                            child: Padding(
-                                              padding: EdgeInsets.all(8.0),
-                                              child: Text('${++index}. ${returnData['name']}'), // Increment index and display in the format "1. Name"
-                                            ),
-                                          ),
-                                          TableCell(
-                                            child: Padding(
-                                              padding: EdgeInsets.all(8.0),
-                                              child: Text(returnData['receivedAmount'].toStringAsFixed(2),
-                                                textAlign: TextAlign.right,
-                                              ),
-                                            ),
-                                          ),
-                                          TableCell(
-                                            child: Padding(
-                                              padding: EdgeInsets.all(8.0),
-                                              child:
-                                              Text(
-                                                returnData['returnAmount'] < 0
-                                                    ? returnData['returnAmount'].toStringAsFixed(2)
-                                                    : '${returnData['returnAmount'].abs().toStringAsFixed(2)}',
-                                                textAlign: TextAlign.right,
-                                                style: TextStyle(
-                                                  color: returnData['returnAmount'] < 0 ? Colors.green : Colors.red,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
-                            child: Text("OK"),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-
-
-                },
-                child: Icon(Icons.terrain_rounded, color: Colors.white),
-              ),
-            ),
-          ),
-          Visibility(
-            visible: double.parse(widget.receivedamnt) <
-                calculateTotalSpentAmount(trips),
-            child: SizedBox(
-              width: 0,
-            ), // Add space before DEBIT text
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Visibility(
-              visible: double.parse(widget.receivedamnt) < calculateTotalSpentAmount(trips),
-              child: GestureDetector(
-                onTap: () {
-                  double totalReceivedAmount = double.parse(widget.receivedamnt);
-                  double totalSpentAmount = calculateTotalSpentAmount(trips);
-                  double debitAmount = totalSpentAmount - totalReceivedAmount;
-                  int numberOfMembers = int.parse(widget.members);
-                  double perPersonSpend = totalSpentAmount / numberOfMembers;
-
-                  // Get the list of members and their received amounts
-                  List<Map<String, dynamic>> membersData = List<Map<String, dynamic>>.from(widget.expenses2);
-
-                  // Calculate the debit amount for each member
-                  List<Map<String, dynamic>> debitAmounts = [];
-                  /*
-                  for (var memberData in membersData) {
-                    double receivedAmount = double.tryParse(memberData['perAmount']) ?? 0;
-                    double debitForThisMember = (perPersonSpend - receivedAmount) > 0 ? (perPersonSpend - receivedAmount) : 0;
-                    debitAmounts.add({
-                      'name': memberData['name'],
-                      'receivedAmount': receivedAmount,
-                      'debitAmount': debitForThisMember,
-                    });
-                  }
-      */
-                  for (var memberData in membersData) {
-                    double receivedAmount = double.tryParse(memberData['perAmount']) ?? 0;
-                    double debitForThisMember = perPersonSpend - receivedAmount;
-                    debitAmounts.add({
-                      'name': memberData['name'],
-                      'receivedAmount': receivedAmount,
-                      'debitAmount': debitForThisMember,
-                    });
-                  }
-
-                  // Show alert box here
-                  showDialog(
-                    context: context,
-                    builder: (BuildContext context) {
-                      return AlertDialog(
-                        title: Text("Debit Details"),
-                        content: Container(
-                          width: double.maxFinite,
-                          child: SingleChildScrollView(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Received: ₹${totalReceivedAmount.toStringAsFixed(2)}'),
-                                Text('Total Spent: ₹${totalSpentAmount.toStringAsFixed(2)}'),
-                                Text('Debit Amount: ₹${debitAmount.toStringAsFixed(2)}'),
-                                Text('Spent per head: ₹${perPersonSpend.toStringAsFixed(2)}'),
-                                Text("Members: ${widget.members}"),
-                                SizedBox(height: 10),
-                                Table(
-                                  border: TableBorder.all(),
-                                  columnWidths: {
-                                    0: FlexColumnWidth(2),
-                                    1: FlexColumnWidth(2),
-                                    2: FlexColumnWidth(2),
-                                  },
-                                  children: [
-                                    TableRow(
-                                      children: [
-                                        TableCell(
-                                          child: Padding(
-                                            padding: EdgeInsets.all(8.0),
-                                            child: Text('Name'),
-                                          ),
-                                        ),
-                                        TableCell(
-                                          child: Padding(
-                                            padding: EdgeInsets.all(8.0),
-                                            child: Text('Received Amount'),
-                                          ),
-                                        ),
-                                        TableCell(
-                                          child: Padding(
-                                            padding: EdgeInsets.all(8.0),
-                                            child: Text('Debit Amount'),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    // Generate rows based on debit amounts
-                                    for (var debitData in debitAmounts)
-                                      TableRow(
-                                        children: [
-                                          TableCell(
-                                            child: Padding(
-                                              padding: EdgeInsets.all(8.0),
-                                              child: Text('${++index}. ${debitData['name']}'), // Increment index and display in the format "1. Name"
-                                            ),
-                                          ),
-                                          TableCell(
-                                            child: Padding(
-                                              padding: EdgeInsets.all(8.0),
-                                              child: Text(debitData['receivedAmount'].toStringAsFixed(2),
-                                                textAlign: TextAlign.right,
-                                              ),
-                                            ),
-                                          ),
-                                          TableCell(
-                                            child: Padding(
-                                              padding: EdgeInsets.all(8.0),
-                                              child:
-                                              Text(
-                                                debitData['debitAmount'] < 0
-                                                    ? debitData['debitAmount'].toStringAsFixed(2)
-                                                    : '${debitData['debitAmount'].abs().toStringAsFixed(2)}',
-                                                textAlign: TextAlign.right,
-                                                style: TextStyle(
-                                                  color: debitData['debitAmount'] < 0 ? Colors.green : Colors.red,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
-                            child: Text("OK"),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                },
-                child: Icon(Icons.terrain_rounded, color: Colors.white),
-              ),
+            child: GestureDetector(
+              onTap: () {
+                /*Navigator.push(context,
+                    MaterialPageRoute(builder: (context) => AddMemberAmount(
+                        tripid:widget.tripid
+                    )));*/
+              },
+              child: Icon(Icons.terrain_rounded, color: Colors.white),
             ),
           ),
         ],
@@ -736,7 +512,8 @@ class _SpentDetailsState extends State<SpentDetails> {
           icon: const Icon(Icons.navigate_before, color: Colors.white),
           onPressed: () {
             Navigator.push(context,
-                MaterialPageRoute(builder: (context) => TripDashboard()));
+                MaterialPageRoute(builder: (context) => TripDashboard(
+                )));
           },
         ),
         titleSpacing: 00.0,
@@ -758,235 +535,239 @@ class _SpentDetailsState extends State<SpentDetails> {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                SizedBox(height: 15,),
-                Container(
-                  width: 320,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20), // Set border radius to 20
-                  ),
-                  child: Column(
-                    children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20), // Set border radius to 20
+                    ),
+                    child: Column(
+                      children: [
 
-                      /// receivedamnt
+                        /// receivedamnt
 
-                      Row(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: CircleAvatar(
-                              child: Icon(SimpleIcons.affine, color: Colors.white),
-                              backgroundColor: Colors.teal, // Set the background color of the circle avatar
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          Column(
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.start, // Align the text widgets in the center
-                                children: [
-                                  Text('Budget',style: Theme.of(context).textTheme.labelMedium),
-                                  SizedBox(width: 70,),
-                                  Text('₹${double.parse(widget.budget).toStringAsFixed(2)}' ,style: Theme.of(context).textTheme.labelMedium,
-                                  ),
-                                ],
+                        Row(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: CircleAvatar(
+                                child: Icon(SimpleIcons.affine, color: Colors.white),
+                                backgroundColor: Colors.teal, // Set the background color of the circle avatar
                               ),
-                              SizedBox(height: 2), // Add space between the row and the text widgets
-                              Container(
-                                width: 200, // Set the desired width
-                                child: LinearProgressIndicator(
-                                  value: totalBudget != 0 ? 1.0 : 0.0,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.teal),
+                            ),
+                            SizedBox(width: 8),
+                            Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.start, // Align the text widgets in the center
+                                  children: [
+                                    Text('Spent',style: Theme.of(context).textTheme.labelMedium),
+                                    SizedBox(width: 70,),
+                                    Text('₹${double.parse(widget.budget).toStringAsFixed(2)}' ,style: Theme.of(context).textTheme.labelMedium,
+                                    ),
+                                  ],
                                 ),
-                              )
-                            ],
-                          ),// Adjust the space between the icon and progress bar
-                        ],
-                      ),   /// Budget
-                      Row(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: CircleAvatar(
-                              child: Icon(SimpleIcons.campaignmonitor, color: Colors.white),
-                              backgroundColor: Colors.blue, // Set the background color of the circle avatar
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          Column(
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Received',
-                                    style: Theme.of(context).textTheme.labelMedium,
+                                SizedBox(height: 2), // Add space between the row and the text widgets
+                                Container(
+                                  width: 200, // Set the desired width
+                                  child: LinearProgressIndicator(
+                                    value: totalBudget != 0 ? 1.0 : 0.0,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.teal),
                                   ),
-                                  SizedBox(width: 70),
-                                  Text(
-                                    '₹${double.parse(widget.receivedamnt).toStringAsFixed(2)}',
-                                    style: Theme.of(context).textTheme.labelMedium,
-                                  ),
-                                ],
+                                )
+                              ],
+                            ),// Adjust the space between the icon and progress bar
+                          ],
+                        ),   /// Budget
+                        Row(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: CircleAvatar(
+                                child: Icon(SimpleIcons.campaignmonitor, color: Colors.white),
+                                backgroundColor: Colors.blue, // Set the background color of the circle avatar
                               ),
-                              SizedBox(height: 2),
-                              Container(
-                                width: 200,
-                                child: LinearProgressIndicator(
-                                  value: double.parse(widget.receivedamnt) / double.parse(widget.budget),
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                            ),
+                            SizedBox(width: 8),
+                            Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Received',
+                                      style: Theme.of(context).textTheme.labelMedium,
+                                    ),
+                                    SizedBox(width: 70),
+                                    Text(
+                                      '₹${double.parse(widget.receivedamnt).toStringAsFixed(2)}',
+                                      style: Theme.of(context).textTheme.labelMedium,
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),  /// Recevived
-                      Row(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: CircleAvatar(
-                              child: Icon(SimpleIcons.cashapp, color: Colors.white),
-                              backgroundColor: calculateTotalSpentAmount(trips) > double.parse(widget.receivedamnt)
-                                  ? Colors.pink // Orange color when spent exceeds received amount
-                                  : Colors.red, // Red color for debit
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          Column(
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                children: [
-                                  Text('Spent',style: Theme.of(context).textTheme.labelMedium),
-                                  SizedBox(width: 70,),
-                                  Text(
-                                    '₹${calculateTotalSpentAmount(trips).toStringAsFixed(2)}', style: Theme.of(context).textTheme.labelMedium,
-                                  ),
-                                ],
-                              ),
-                              SizedBox(height: 2),
-                              Container(
-                                width: 210,
-                                child: LinearProgressIndicator(
-                                  value: calculateTotalSpentAmount(trips) / double.parse(widget.receivedamnt),
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    calculateTotalSpentAmount(trips) > double.parse(widget.receivedamnt)
-                                        ? Colors.pink // Orange color when spent exceeds received amount
-                                        : Colors.red, // Red color for debit
+                                SizedBox(height: 2),
+                                Container(
+                                  width: 200,
+                                  child: LinearProgressIndicator(
+                                    value: double.parse(widget.receivedamnt) / double.parse(widget.budget),
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ), /// Spent
-
-                      Row(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: CircleAvatar(
-                              child: Icon(SimpleIcons.hearth, color: Colors.white),
-                              backgroundColor: calculateTotalSpentAmount(trips) <= double.parse(widget.receivedamnt)
-                                  ? Colors.green // Green color for remaining budget
-                                  : Colors.red, // Red color for debit
+                              ],
                             ),
-                          ),
-                          SizedBox(width: 8),
-                          Column(
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    calculateTotalSpentAmount(trips) <= double.parse(widget.receivedamnt)
-                                        ? 'Remaining'
-                                        : 'Debit',
-                                    style: Theme.of(context).textTheme.labelMedium,
-                                  ),
-                                  SizedBox(width: 70),
-                                  Text(
-                                    calculateTotalSpentAmount(trips) <= double.parse(widget.receivedamnt)
-                                        ? '₹${(double.parse(widget.receivedamnt) - calculateTotalSpentAmount(trips)).toStringAsFixed(2)}'
-                                        : '₹${(calculateTotalSpentAmount(trips) - double.parse(widget.receivedamnt)).toStringAsFixed(2)}',
-                                    style: Theme.of(context).textTheme.labelMedium,
-                                  ),
-                                ],
+                          ],
+                        ),  /// Recevived
+                        Row(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: CircleAvatar(
+                                child: Icon(SimpleIcons.cashapp, color: Colors.white),
+                                backgroundColor: totalBudgetAmount > double.parse(widget.receivedamnt)
+                                    ? Colors.red // Orange color when spent exceeds received amount
+                                    : Colors.teal,
                               ),
-                              SizedBox(height: 2),
-                              Container(
-                                width: 200,
-                                child: LinearProgressIndicator(
-                                  value: calculateTotalSpentAmount(trips) <= double.parse(widget.receivedamnt)
-                                      ? (double.parse(widget.receivedamnt) - calculateTotalSpentAmount(trips)) / double.parse(widget.receivedamnt)
-                                      : (calculateTotalSpentAmount(trips) - double.parse(widget.receivedamnt)) / double.parse(widget.budget),
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    calculateTotalSpentAmount(trips) <= double.parse(widget.receivedamnt)
-                                        ? Colors.green // Green color for remaining budget
-                                        : Colors.red, // Red color for debit
-                                  ),
+                            ),
+                            SizedBox(width: 8),
+                            Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.start,
+                                  children: [
+                                    Text('Spent', style: Theme.of(context).textTheme.labelMedium),
+                                    SizedBox(width: 70),
+                                    Text('₹${totalSpent.isNotEmpty ? totalSpent : '0.00'}', style: Theme.of(context).textTheme.labelMedium),
+                                  ],
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),   /// Remaining
-
-                      // Add other rows with CircleAvatar and LinearProgressIndicator here
-                    ],
-                  ),
-                ),
-
-                SizedBox(height: 10,),
-                Container(
-                  width: 350,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10.0),
-                    color: Colors.white,
-
-                  ),
-                  child: ExpansionTile(
-                    title: Text('Chart',
-                      style: TextStyle(
-                        fontSize: 18, // Increase font size for the title
-                        fontWeight: FontWeight.bold, // Add bold font weight
-                        //   color: Colors.blue, // Change text color
-                      ),),
-                    backgroundColor: Colors.white70,// Title of the ExpansionTile
-                    children: [
-                      Container(
-                        height: 200,
-                        width: 350,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(10), // Set border radius to 20
-                        ),
-                        child: SfCartesianChart(
-                          primaryXAxis: CategoryAxis(),
-                          primaryYAxis: NumericAxis(
-                            minimum: 0,
-                            maximum: receivedAmount,
-                            interval: receivedAmount / 4,
-                            numberFormat: NumberFormat.compact(),
-                          ),
-                          series: <CartesianSeries>[
-                            BarSeries<SalesData, String>(
-                              dataSource: chartData,
-                              xValueMapper: (SalesData sales, _) => sales.category,
-                              yValueMapper: (SalesData sales, _) => sales.amount,
-                              dataLabelSettings: DataLabelSettings(
-                                isVisible: true,
-                                labelPosition: ChartDataLabelPosition.inside, // Adjust label position
-                              ),
-                              // Assigning colors directly to each data point
-                              pointColorMapper: (SalesData sales, _) => _getColorForCategory(sales.category),
-                              width: 0.1,
+                                SizedBox(height: 2), // Add space between the row and the text widgets
+                                Container(
+                                  width: 200, // Set the desired width
+                                  child: LinearProgressIndicator(
+                                    value: double.tryParse(widget.receivedamnt) != null && double.parse(widget.receivedamnt) != 0
+                                        ? totalSpent.isNotEmpty
+                                        ? double.parse(totalSpent) / double.parse(widget.receivedamnt) // Calculate progress ratio if totalSpent is not empty
+                                        : 0.0 // Default value if totalSpent is empty
+                                        : 0.0, // Default value if received amount is not a valid number or is zero
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      totalSpent.isNotEmpty && double.parse(totalSpent) > double.parse(widget.receivedamnt)
+                                          ? Colors.red // Red color for spent exceeding income
+                                          : Colors.teal, // Teal color for remaining budget or default color if totalSpent is empty
+                                    ),
+                                  ),
+                                )
+                              ],
                             ),
                           ],
                         ),
-                      ),
-                    ],
+                        /// Spent
+
+                        Row(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: CircleAvatar(
+                                child: Icon(SimpleIcons.affine, color: Colors.white),
+                                backgroundColor: totalBudgetAmount > double.parse(widget.receivedamnt)
+                                    ? Colors.red // Orange color when spent exceeds received amount
+                                    : Colors.teal,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      remaining.isNotEmpty && double.parse(remaining) >= 0 ? 'Remaining' : 'Debit',
+                                      style: Theme.of(context).textTheme.labelMedium,
+                                    ),
+                                    SizedBox(width: 70),
+                                    Text(
+                                      '₹${remaining.isNotEmpty ? (double.parse(remaining) >= 0 ? remaining : (double.parse(remaining) * -1).toString()) : '0.00'}',
+                                      style: Theme.of(context).textTheme.labelMedium,
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: 2), // Add space between the row and the text widgets
+                                Container(
+                                  width: 200, // Set the desired width
+                                  child: LinearProgressIndicator(
+                                    value: double.tryParse(widget.receivedamnt) != null && double.parse(widget.receivedamnt) != 0
+                                        ? remaining.isNotEmpty
+                                        ? double.parse(remaining).abs() / double.parse(widget.receivedamnt) // Calculate progress ratio if remaining is not empty
+                                        : 0.0 // Default value if remaining is empty
+                                        : 0.0, // Default value if received amount is not a valid number or is zero
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      remaining.isNotEmpty && double.parse(remaining) < 0
+                                          ? Colors.red // Red color for debit
+                                          : Colors.teal, // Teal color for remaining budget or default color if remaining is empty
+                                    ),
+                                  ),
+                                )
+                              ],
+                            )
+                          ],
+                        ),
+                        /// Remaining
+
+                        // Add other rows with CircleAvatar and LinearProgressIndicator here
+                      ],
+                    ),
+                  ),
+                ),
+
+
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10.0),
+                      color: Colors.white,
+                    ),
+                    child: ExpansionTile(
+                      title: Text('Chart',
+                        style: TextStyle(
+                          fontSize: 18, // Increase font size for the title
+                          fontWeight: FontWeight.bold, // Add bold font weight
+                          //   color: Colors.blue, // Change text color
+                        ),),
+                      backgroundColor: Colors.white70,// Title of the ExpansionTile
+                      children: [
+                        Container(
+                          height: 200,
+                          width: 350,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10), // Set border radius to 20
+                          ),
+                          child: SfCartesianChart(
+                            primaryXAxis: CategoryAxis(),
+                            primaryYAxis: NumericAxis(
+                              minimum: 0,
+                              maximum: receivedAmount,
+                              interval: receivedAmount / 4,
+                              numberFormat: NumberFormat.compact(),
+                            ),
+                            series: <CartesianSeries>[
+                              BarSeries<SalesData, String>(
+                                dataSource: chartData,
+                                xValueMapper: (SalesData sales, _) => sales.category,
+                                yValueMapper: (SalesData sales, _) => sales.amount,
+                                dataLabelSettings: DataLabelSettings(
+                                  isVisible: true,
+                                  labelPosition: ChartDataLabelPosition.inside, // Adjust label position
+                                ),
+                                // Assigning colors directly to each data point
+                                pointColorMapper: (SalesData sales, _) => _getColorForCategory(sales.category),
+                                width: 0.1,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
 
@@ -1167,17 +948,22 @@ class _SpentDetailsState extends State<SpentDetails> {
                                                 });
                                               },
                                               decoration: InputDecoration(
+                                                prefixText: "₹",
                                                 hintText: spentexpenses[i]
                                                 ['spentamount']!
                                                     .text
                                                     .isEmpty
-                                                    ? 'Amount'
+                                                    ? 'Rs'
                                                     : null,
                                                 hintStyle: const TextStyle(
                                                     fontSize: 16,
                                                     color: Colors.black),
                                               ),
                                               keyboardType: TextInputType.number,
+                                              inputFormatters: [
+                                                LengthLimitingTextInputFormatter(6),
+                                                FilteringTextInputFormatter.allow(RegExp(r'[0-9]')),
+                                              ],
                                             ),
                                           ),
 
@@ -1398,22 +1184,20 @@ class _SpentDetailsState extends State<SpentDetails> {
                                         actions: [
                                           ElevatedButton(
                                             onPressed: () {
-                                              _saveDataToSharedPreferences(
-                                                  remainingBudgetString,
-                                                  debitBudgetString);
+                                              savespentdata(spentexpenses,widget.tripid);
+
                                               Navigator.push(
                                                 context,
                                                 MaterialPageRoute(
                                                   builder: (context) =>
                                                       SpentDetails(
-                                                        tripId: widget.tripid,
+                                                        tripid:widget.tripid,
+                                                        // tripId: widget.tripid,
                                                         budget: widget.budget,
-                                                        tripid: widget.tripid,
-                                                        expenses: widget.expenses,
-                                                        expenses2: widget.expenses2,
-                                                        receivedamnt:
-                                                        widget.receivedamnt,
+                                                        // tripid: widget.tripid,
+                                                        receivedamnt: widget.receivedamnt,
                                                         members: widget.members,
+                                                        tripname: widget.tripname,
                                                       ),
                                                 ),
                                               );
@@ -1464,97 +1248,400 @@ class _SpentDetailsState extends State<SpentDetails> {
                   ),
                 ),
 
-                /// Dropdown and amount
-                //for (var expense in widget.expenses)
-                Container(
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Column(
-                      children: [
-                        for (var i = 0; i < trips.length; i++)
-                          for (var j = 0; j < trips[i]['expenses'].length; j++)
-                            Container(
-                              width: 350,
-                              margin: EdgeInsets.all(8.0),
-                              padding: EdgeInsets.all(8.0),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(5),
-                                border: Border.all(
-                                  color: Color(0xFF8155BA),
-                                  width: 1,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.red.withOpacity(0.2),
-                                    spreadRadius: 0,
-                                    blurRadius: 0,
-                                    offset: Offset(0, 0),
-                                  ),
-                                ],
-                              ),
-                              alignment: (i + j) % 2 == 0
-                                  ? Alignment.centerRight
-                                  : Alignment.centerLeft,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        'Category: ${trips[i]['expenses'][j]['spentcategory']}',
-                                        style: Theme.of(context).textTheme.bodySmall,
-                                      ),
-                                      Text(
-                                        '${trips[i]['expenses'][j]['date']}',
-                                        style: Theme.of(context).textTheme.labelMedium,
-                                      ),
-                                    ],
-                                  ),
-                                  SizedBox(height: 5),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
 
-                                    children: [
-                                      Text(
-                                        'Amount  : ₹ ${trips[i]['expenses'][j]['spentamount']}',
-                                        style: Theme.of(context).textTheme.bodySmall,
-                                      ),
-                                      IconButton(
-                                        icon: Icon(Icons.delete_forever, color: Colors.red),
-                                        onPressed: () {
-                                          _deleteExpense(i, j);
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                  SizedBox(height: 5),
-                                  if (trips[i]['expenses'][j]['remarks'].isNotEmpty)
-                                    Text(
-                                      'Remarks :  ${trips[i]['expenses'][j]['remarks']}',
-                                      style: Theme.of(context).textTheme.bodySmall,
-                                    ),
-                                ],
-                              ),
-                            ),
-                        // Display the total spent amount after iterating through all expenses
-                      ],
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10.0),
+                    gradient: LinearGradient(
+                      colors: [Colors.white, Colors.white],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
                     ),
                   ),
+                  width: double.infinity,
+                  height: MediaQuery.of(context).size.height / 1.5,
+                  child: Stack(
+                    children: [
+                      SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            Column(
+                              children: _buildExpenseList(),
+                            ),
+                            SizedBox(
+                              height: 80,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 16, // Adjust bottom margin as needed
+                        right: 16, // Adjust right margin as needed
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Color(0xFF8155BA),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.3),
+                                spreadRadius: 2,
+                                blurRadius: 2,
+                                offset: Offset(
+                                  0,
+                                  2,
+                                ), // changes position of shadow
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+
+                /// Dropdown and amount
+                //for (var expense in widget.expenses)
 
                 /// category and amount nd remarks
               ],
             ),
           ),
+
         ),
+
 
       ),
     );
+
   }
 
 
+  List<Widget> _buildExpenseList() {
+    Map<String, dynamic> groupedExpenses = {};
+
+    for (var expense in spentData) {
+      String date = expense['date']!;
+      if (!groupedExpenses.containsKey(date)) {
+        groupedExpenses[date] = [];
+      }
+      groupedExpenses[date]!.add({...expense, 'show': false});
+    }
+
+    List<Widget> expenseWidgets = [];
+
+    groupedExpenses.forEach((date, expenses) {
+      DateTime parsedDate = DateFormat('dd-MM-yyyy').parse(date);
+      // String dayName = DateFormat('EEEE').format(parsedDate);
+
+      List<Widget> expensesList = [];
+      for (var expense in expenses) {
+        expensesList.add(
+          GestureDetector
+            (
+            onTap: () {
+              var id = expense['id'];
+              setState(() {
+                _selectedExpenseIndex = id;
+              });
+            },
+            child: Padding(
+              padding:
+              const EdgeInsets.only(right: 40, top: 5, bottom: 5, left: 10),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(color: Color(0xFF8155BA)),
+                            borderRadius: BorderRadius.circular(12.0),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withOpacity(0.5),
+                                spreadRadius: 3,
+                                blurRadius: 5,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      ' ${expense['categories']}',
+                                      style:
+                                      Theme.of(context).textTheme.bodySmall,
+                                    ),
+                                    Text(
+                                      '₹${double.parse(expense['amount']!).toStringAsFixed(2)}',
+                                      style:
+                                      Theme.of(context).textTheme.bodySmall,
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(
+                                  height: 5,
+                                ),
+                                Visibility(
+                                  visible: expense['remark'] != null &&
+                                      expense['remark']!.isNotEmpty,
+                                  child: Text(
+                                    "Remarks: ${expense['remark'] ?? ''}",
+                                    style:
+                                    Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                )
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        if (_selectedExpenseIndex == expense['id'])
+                          IconButton(
+                            icon: Icon(
+                              Icons.delete,
+                              color: Color(0xFF8155BA),
+                            ),
+                            onPressed: (){
+                              showDialog(
+                                  context: context,
+                                  builder: (ctx) =>
+                                  // Dialog box for register meeting and add guest
+                                  AlertDialog(
+                                    backgroundColor: Colors.grey[800],
+                                    title: const Text('Delete',
+                                        style: TextStyle(color: Colors.white)),
+                                    content: const Text("Do you want to Delete the Spent?",
+                                        style: TextStyle(color: Colors.white)),
+                                    actions: [
+                                      TextButton(
+                                          onPressed: () async{
+                                            delete(expense['id']);
+                                            Navigator.pop(context);
+                                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                                                content: Text("You have Successfully Deleted")));
+                                          },
+                                          child: const Text('Yes')),
+                                      TextButton(
+                                          onPressed: () {
+                                            Navigator.pop(context);
+                                          },
+                                          child: const Text('No'))
+                                    ],
+                                  )
+                              );
+                            },
+                          ),
+                        if (_selectedExpenseIndex == expense['id'])
+                          IconButton(
+                            icon: Icon(Icons.edit, color: Color(0xFF8155BA)),
+                            onPressed: () async {
+                              _selectedId = expense['id'];
+                              await showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: Text('Edit Expense'),
+                                  content: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                    children: [
+                                      TextFormField(
+                                        style: Theme.of(context).textTheme.labelMedium,
+                                        readOnly: true,
+                                        onTap: () async {
+                                          DateTime? pickDate = await showDatePicker(
+                                            context: context,
+                                            initialDate: DateTime.now(),
+                                            firstDate: DateTime.now(),
+                                            lastDate: DateTime(2300),
+                                            builder: (BuildContext context, Widget? child) {
+                                              return Theme(
+                                                data: ThemeData.light().copyWith(
+                                                  colorScheme: ColorScheme.light(
+                                                    primary: Color(0xFF8155BA),
+                                                  ),
+                                                ),
+                                                child: child!,
+                                              );
+                                            },
+                                          );
+                                          if (pickDate == null) return;
+                                          {
+                                            setState(() {
+                                              editdate.text =
+                                                  DateFormat('dd-MM-yyyy').format(pickDate);
+                                              errormsg = null;
+                                            });
+                                          }
+                                        },
+                                        controller: editdate=TextEditingController(text: expense["date"]),
+                                        decoration: InputDecoration(
+                                          suffixIcon: Icon(
+                                            Icons.date_range,
+                                            size: 14,
+                                          ),
+                                          filled: true,
+                                          fillColor: Colors.white,
+                                          labelText: "Date",
+                                          labelStyle: Theme.of(context).textTheme.labelMedium,
+                                        ),
+                                      ),
+                                      TypeAheadFormField(
+                                        textFieldConfiguration: TextFieldConfiguration(
+                                          controller: categoryEdit=TextEditingController(text: expense["categories"]),
+                                          decoration: InputDecoration(
+                                            labelText: 'Category',
+                                            labelStyle: Theme.of(context)
+                                                .textTheme
+                                                .bodySmall
+                                                ?.copyWith(color: Colors.black),
+                                          ),
+                                        ),
+                                        suggestionsCallback: (pattern) {
+                                          return _categories.where((category) =>
+                                              category['name'].toLowerCase().contains(pattern.toLowerCase()));
+                                        },
+                                        itemBuilder: (context, suggestion) {
+                                          return ListTile(
+                                            leading: Icon(
+                                              suggestion['icon'],
+                                              color: Color(0xFF8155BA),
+                                            ),
+                                            title: Text(
+                                              suggestion['name'],
+                                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                                color: Colors.black,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                        onSuggestionSelected: (suggestion) {
+                                          setState(() {
+                                            categoryEdit.text = suggestion['name'];
+                                          });
+                                        },
+                                      ),
+                                      TextField(
+                                        controller: _amountController=TextEditingController(text: expense['amount']),
+                                        decoration: InputDecoration(
+                                            labelText: 'Amount'),
+                                        keyboardType: TextInputType.number,
+                                      ),
+                                      TextField(
+                                        controller: editremark=TextEditingController(text: expense['remark']),
+                                        decoration: InputDecoration(
+                                            labelText: 'Remarks'),
+                                        keyboardType: TextInputType.number,
+                                      ),
+                                    ],
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.of(context)
+                                            .pop(); // Close the dialog
+                                      },
+                                      child: Text('Cancel'),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () async {
+                                        editExpense(int.parse(expense['id'].toString()));
+                                        Navigator.push(context, MaterialPageRoute(builder: (context)=>SpentDetails(
+                                          tripid:widget.tripid,
+                                          budget: widget.budget,
+                                          receivedamnt: widget.receivedamnt,
+                                          members: widget.members,
+                                          tripname: widget.tripname,
+                                        )));
+                                      },
+                                      child: Text('Save'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                      ],
+                    ),
+                  )
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+
+      expenseWidgets.add(
+        Padding(
+          padding:
+          const EdgeInsets.only(left: 25, right: 25, top: 25, bottom: 5),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              /*  Text(
+                '$dayName',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18.0,
+                ),
+              ),*/
+              Text(
+                '$date',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15.0,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      expenseWidgets.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10.0),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.5),
+                  spreadRadius: 2,
+                  blurRadius: 5,
+                  offset: Offset(0, 3),
+                ),
+              ],
+            ),
+            margin: EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0),
+            padding: EdgeInsets.all(10.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: expensesList,
+            ),
+          ),
+        ),
+      );
+    });
+
+    return expenseWidgets;
+  }
   Color _getColorForCategory(String category) {
     switch (category) {
       case 'Food':
@@ -1573,6 +1660,24 @@ class _SpentDetailsState extends State<SpentDetails> {
       // Here, I'm using a simple approach by returning a different default color for each unknown category
         List<Color> defaultColors = [Colors.orange, Colors.teal, Colors.deepOrange, Colors.indigo];
         return defaultColors[category.hashCode % defaultColors.length]; // Default color for unknown categories
+    }
+  }
+  Future<void> updateRecord(NavigatorState nav) async {
+    var headers = {'Content-Type': 'application/json'};
+
+    var response = await http.put(Uri.parse(url),
+        headers: headers,
+        body: jsonEncode({
+          'id': _selectedId,
+          'category': _selectedCategory,
+          'amount': _amountController.text
+        }));
+
+    if (response.statusCode == 200) {
+      nav.pop();
+      readRecords(widget.tripid);
+    } else {
+      print('Failed to update record: ${response.body}');
     }
   }
 

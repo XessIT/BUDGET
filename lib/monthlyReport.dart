@@ -1,10 +1,15 @@
-import 'dart:ui';
-
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+//import 'package:shared_preferences/shared_preferences.dart';
 import 'package:glass_kit/glass_kit.dart';
+import 'package:intl/intl.dart';
 
 class MonthlyReportPage extends StatefulWidget {
+  final String uid;
+  const MonthlyReportPage({super.key,
+    required this.uid
+  });
   @override
   _MonthlyReportPageState createState() => _MonthlyReportPageState();
 }
@@ -14,15 +19,45 @@ class _MonthlyReportPageState extends State<MonthlyReportPage> {
 
   @override
   void initState() {
+    getData();
     super.initState();
-    _loadReportIds();
+   // _loadReportIds();
   }
 
-  Future<void> _loadReportIds() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    setState(() {
-      incomeIds = prefs.getStringList('incomeIds') ?? [];
-    });
+  List<Map<String, dynamic>> data=[];
+  Future<void> getData() async {
+    print('Attempting to make HTTP request...');
+    try {
+      final url = Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/monthlyReport.php?table=monthly_credit&uid=${widget.uid}');
+         print(url);
+      final response = await http.get(url);
+       print("ResponseStatus: ${response.statusCode}");
+       print("Response: ${response.body}");
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        print("ResponseData: $responseData");
+        if (responseData is List) {
+          // If responseData is a List (multiple records)
+          final List<dynamic> itemGroups = responseData;
+          setState(() {
+            data = itemGroups.cast<Map<String, dynamic>>();
+          });
+          print('Data: $data');
+        } else if (responseData is Map<String, dynamic>) {
+          // If responseData is a Map (single record)
+          setState(() {
+            data = [responseData];
+          });
+          print('Data: $data');
+        }
+      } else {
+        print('Error: ${response.statusCode}');
+      }
+      print('HTTP request completed. Status code: ${response.statusCode}');
+    } catch (e) {
+      print('Error making HTTP request: $e');
+      throw e; // rethrow the error if needed
+    }
   }
 
   @override
@@ -46,27 +81,301 @@ class _MonthlyReportPageState extends State<MonthlyReportPage> {
         elevation: 0.00,
         backgroundColor: Color(0xFF8155BA),
       ),
-      body: ListView.builder(
-        itemCount: incomeIds.length,
-        itemBuilder: (context, index) {
-          return FutureBuilder<Map<String, dynamic>>(
-            future: _getReportData(incomeIds[index]),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return Center(child: CircularProgressIndicator());
-              }
-              if (snapshot.hasError) {
-                return Center(child: Text('Error: ${snapshot.error}'));
-              }
-              return _buildReportCard(snapshot.data!, context);
-            },
-          );
-        },
+      body: Container(
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              Padding(
+                padding: EdgeInsets.all(15.0),
+                child: Card(
+                  elevation: 10,
+                  shadowColor: Colors.deepPurple,
+                  child: Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Text("1-Apr-2023 to 30-Apr-2023", style: TextStyle(fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text("Total Income"),
+                            Text("₹40000.00"),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text("Total Expenses"),
+                            Text("₹30000.00"),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text("Remaining Amount"),
+                            Text("₹10000.00"),
+                          ],
+                        ),
+                        Divider(),
+                        Divider(),
+                        Row(
+                          children: [
+                            Text("Income Type", style: TextStyle(fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text("02-Apr"),
+                            // Text(DateFormat('dd-MMM').format(DateTime.parse(spentData[i]["date"]))),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text("Salary"),
+                               // Container(child: Text("For Rent")),
+                                /*Text("${spentData[i]["categories"]}"),
+                                if (spentData[i]["remark"] != null &&
+                                    spentData[i]["remark"].isNotEmpty)
+                                  Container(child: Text("(${spentData[i]["remark"]})")),*/
+                              ],
+                            ),
+                            Text("₹20000.00")
+                            // Text("₹${double.tryParse(spentData[i]["amount"])!.toStringAsFixed(2)}"),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text("10-Apr"),
+                            // Text(DateFormat('dd-MMM').format(DateTime.parse(spentData[i]["date"]))),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text("From Rent"),
+                                // Container(child: Text("For Rent")),
+                                /*Text("${spentData[i]["categories"]}"),
+                                if (spentData[i]["remark"] != null &&
+                                    spentData[i]["remark"].isNotEmpty)
+                                  Container(child: Text("(${spentData[i]["remark"]})")),*/
+                              ],
+                            ),
+                            Text("₹10000.00")
+                            // Text("₹${double.tryParse(spentData[i]["amount"])!.toStringAsFixed(2)}"),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text("20-Apr"),
+                            // Text(DateFormat('dd-MMM').format(DateTime.parse(spentData[i]["date"]))),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text("Interest"),
+                                // Container(child: Text("For Rent")),
+                                /*Text("${spentData[i]["categories"]}"),
+                                if (spentData[i]["remark"] != null &&
+                                    spentData[i]["remark"].isNotEmpty)
+                                  Container(child: Text("(${spentData[i]["remark"]})")),*/
+                              ],
+                            ),
+                            Text("₹10000.00")
+                            // Text("₹${double.tryParse(spentData[i]["amount"])!.toStringAsFixed(2)}"),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Container(width:80,child: Divider()),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Text("₹40000.00")
+                            // Text("₹${spenttotal.toStringAsFixed(2)}"),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Container(width:80,child: Divider()),
+                          ],
+                        ),
+                        Divider(),
+                        const Row(
+                          children: [
+                            Text("Expenses", style: TextStyle(fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                        const Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text("02-Apr"),
+                           // Text(DateFormat('dd-MMM').format(DateTime.parse(spentData[i]["date"]))),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text("Housing"),
+                               // Container(child: Text("For Rent")),
+                                /*Text("${spentData[i]["categories"]}"),
+                                if (spentData[i]["remark"] != null &&
+                                    spentData[i]["remark"].isNotEmpty)
+                                  Container(child: Text("(${spentData[i]["remark"]})")),*/
+                              ],
+                            ),
+                           Text("₹20000.00")
+                           // Text("₹${double.tryParse(spentData[i]["amount"])!.toStringAsFixed(2)}"),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text("10-Apr"),
+                            // Text(DateFormat('dd-MMM').format(DateTime.parse(spentData[i]["date"]))),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text("Transportation"),
+                               // Container(child: Text("For Rent")),
+                                /*Text("${spentData[i]["categories"]}"),
+                                if (spentData[i]["remark"] != null &&
+                                    spentData[i]["remark"].isNotEmpty)
+                                  Container(child: Text("(${spentData[i]["remark"]})")),*/
+                              ],
+                            ),
+                            Text("₹2000.00")
+                            // Text("₹${double.tryParse(spentData[i]["amount"])!.toStringAsFixed(2)}"),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text("20-Apr"),
+                            // Text(DateFormat('dd-MMM').format(DateTime.parse(spentData[i]["date"]))),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text("Savings"),
+                               // Container(child: Text("For Rent")),
+                                /*Text("${spentData[i]["categories"]}"),
+                                if (spentData[i]["remark"] != null &&
+                                    spentData[i]["remark"].isNotEmpty)
+                                  Container(child: Text("(${spentData[i]["remark"]})")),*/
+                              ],
+                            ),
+                            Text("₹8000.00")
+                            // Text("₹${double.tryParse(spentData[i]["amount"])!.toStringAsFixed(2)}"),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Container(width:80,child: Divider()),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Text("₹30000.00")
+                           // Text("₹${spenttotal.toStringAsFixed(2)}"),
+                          ],
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Container(width:80,child: Divider()),
+                          ],
+                        ),
+                        Divider(),
+                      ]
+                    )
+                  )
+                )
+              ),
+              /*ListView.builder(
+                itemCount: data.length,
+                itemBuilder: (context, i) {
+                  // Parse the date strings to DateTime objects
+                  final fromDate = DateTime.parse(data[i]['fromDate']);
+                  final toDate = DateTime.parse(data[i]['toDate']);
+
+                  // Format the DateTime objects to "day month year" format
+                  final dateFormatter = DateFormat('dd-MMMM-yyyy');
+                  final formattedFromDate = dateFormatter.format(fromDate);
+                  final formattedToDate = dateFormatter.format(toDate);
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => MonthlyReport(
+                              uid: data[i]['uid'],
+                              incomeId: data[i]['incomeId'],
+                              fromDate: formattedFromDate,
+                            toDate: formattedToDate
+                          ),
+                        ),
+                      );
+                    },
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 25, vertical: 8),
+                      child: GlassContainer(
+                        height: 100,
+                        width: double.infinity,
+                        gradient: const LinearGradient(
+                          colors: [
+                            Color(0xFF8155BA),
+                            Colors.lightBlueAccent
+                          ], // Example gradient
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        blur: 20,
+                        borderWidth: 0,
+                        borderColor: Colors.transparent,
+                        frostedOpacity: 0.1,
+                        child: Padding(
+                          padding: EdgeInsets.all(20),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                       '$formattedFromDate - $formattedToDate',
+                                        style: Theme.of(context).textTheme.labelMedium),
+                                    SizedBox(height: 10),
+                                    Text('Total Incomes : ₹${(data[i]['total_income'] ?? 0.0).toStringAsFixed(2)}',
+                                        style: Theme.of(context).textTheme.bodySmall)
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.arrow_forward,
+                                size: 30,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),*/
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Future<Map<String, dynamic>> _getReportData(String incomeId) async {
+  /*Future<Map<String, dynamic>> _getReportData(String incomeId) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? totalIncome = prefs.getString('$incomeId:totalincome');
     String? incomeType = prefs.getString('$incomeId:incomeType');
@@ -100,9 +409,9 @@ class _MonthlyReportPageState extends State<MonthlyReportPage> {
     };
 
     return reportData;
-  }
+  }*/
 
-  Widget _buildReportCard(Map<String, dynamic> data, BuildContext context) {
+ /* Widget _buildReportCard(Map<String, dynamic> data, BuildContext context) {
     String totalIncomes = data['totalincome'];
     return GestureDetector(
       onTap: () {
@@ -157,14 +466,63 @@ class _MonthlyReportPageState extends State<MonthlyReportPage> {
         ),
       ),
     );
-  }
+  }*/
 }
 
-class MonthlyReport extends StatelessWidget {
-  final Map<String, dynamic> reportData;
+class MonthlyReport extends StatefulWidget {
+ // final Map<String, dynamic> reportData;
+  final String uid;
+  final String incomeId;
+  final String fromDate;
+  final String toDate;
+  MonthlyReport({super.key, required this.uid, required this.incomeId, required  this.fromDate, required this.toDate});
 
-  MonthlyReport({super.key, required this.reportData});
+  @override
+  State<MonthlyReport> createState() => _MonthlyReportState();
+}
 
+class _MonthlyReportState extends State<MonthlyReport> {
+  List<Map<String, dynamic>> data=[];
+  Future<void> getData() async {
+    print('Attempting to make HTTP request...');
+    try {
+      final url = Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/monthlyReport.php?table=monthly_expenses&uid=${widget.uid}&incomeId=${widget.incomeId}');
+      print(url);
+      final response = await http.get(url);
+      print("ResponseStatus: ${response.statusCode}");
+      print("Response: ${response.body}");
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        print("ResponseData: $responseData");
+        if (responseData is List) {
+          // If responseData is a List (multiple records)
+          final List<dynamic> itemGroups = responseData;
+          setState(() {
+            data = itemGroups.cast<Map<String, dynamic>>();
+          });
+          print('Data: $data');
+        } else if (responseData is Map<String, dynamic>) {
+          // If responseData is a Map (single record)
+          setState(() {
+            data = [responseData];
+          });
+          print('Data: $data');
+        }
+      } else {
+        print('Error: ${response.statusCode}');
+      }
+      print('HTTP request completed. Status code: ${response.statusCode}');
+    } catch (e) {
+      print('Error making HTTP request: $e');
+      throw e; // rethrow the error if needed
+    }
+  }
+  @override
+  void initState() {
+    getData();
+    super.initState();
+    // _loadReportIds();
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -176,7 +534,7 @@ class MonthlyReport extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 Text(
-                  '${reportData['selectedFromDate'] ?? ''} - ${reportData['selectedToDate']??''}',
+                  '${widget.fromDate ?? ''} - ${widget.toDate??''}',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ],
@@ -215,117 +573,81 @@ class MonthlyReport extends StatelessWidget {
                 ),
               ],
             ),
-            child: _buildReportContent(context),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      "Income",
+                      style: Theme.of(context)
+                          .textTheme
+                          .labelMedium!
+                          .copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(width: 50,),
+                    Text(
+                      "Spent",
+                      style: Theme.of(context)
+                          .textTheme
+                          .labelMedium!
+                          .copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(width: 50,),
+                    Text(
+                      "Remaining",
+                      style: Theme.of(context)
+                          .textTheme
+                          .labelMedium!
+                          .copyWith(fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 5),
+                Divider(),
+                Text(
+                  "Spent",
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelMedium!
+                      .copyWith(fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 8),
+                // Display monthly expenses
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: NeverScrollableScrollPhysics(),
+                  itemCount: data.length,
+                  itemBuilder: (context, i) {
+                    final toDate = DateTime.parse(data[i]['date']);
+
+                    // Format the DateTime objects to "day month year" format
+                    final dateFormatter = DateFormat('MMM - dd');
+                    final formattedFromDate = dateFormatter.format(toDate);
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('$formattedFromDate'),
+                            Text('${data[i]['category']}'),
+                            Text('₹${data[i]['amount']}'),
+                          ],
+                        ),
+                        SizedBox(height: 4),
+                        Text('${data[i]['remarks']}', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        Divider(),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
-  Widget _buildReportContent(BuildContext context) {
-    String? totalIncome = reportData['totalincome'];
-    String? incomeType = reportData['incomeType'];
-    String? fromDate = reportData['selectedFromDate'];
-    String? toDate = reportData['selectedToDate'];
-    String? creditAmt = reportData['creditAmt'];
-    List<Map<String, String>> monthlyExpenses = List<Map<String, String>>.from(reportData['monthlyExpenses'] ?? []);
-    double totalSpent = 0;
-    for (var expense in monthlyExpenses) {
-      totalSpent += double.parse(expense['monthlyamount'] ?? '0');
-    }
-
-    // Calculate remaining amount
-    double remaining = double.parse(totalIncome ?? '0') - totalSpent;
-
-    bool isDebit = remaining < 0;
-    double remainingAbs = remaining.abs();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text(
-              "Income",
-              style: Theme.of(context)
-                  .textTheme
-                  .labelMedium!
-                  .copyWith(fontWeight: FontWeight.bold),
-            ),
-            SizedBox(width: 50,),
-            Text(
-              "Spent",
-              style: Theme.of(context)
-                  .textTheme
-                  .labelMedium!
-                  .copyWith(fontWeight: FontWeight.bold),
-            ),
-            SizedBox(width: 50,),
-            Text(
-              "Remaining",
-              style: Theme.of(context)
-                  .textTheme
-                  .labelMedium!
-                  .copyWith(fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-        SizedBox(height: 5),
-        Row(
-          children: [
-            Text('₹$totalIncome',style: TextStyle(color: Colors.green.shade900,fontSize: 20),),
-            SizedBox(width: 50,),
-            Text('₹$totalSpent',style: TextStyle(color: Colors.green.shade900,fontSize: 20),),
-            SizedBox(width: 50,),
-            isDebit
-                ? Row( // Wrap "Debit" text in a column for smaller size
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  "₹$remainingAbs",
-                  style: TextStyle(color: Colors.green.shade900, fontSize: 20),
-                ),
-                const Text(
-                  "Debit",
-                  style: TextStyle(color: Colors.red, fontSize: 12), // Specify smaller font size for "Debit"
-                ),
-              ],
-            )
-                : Text(
-              "₹$remaining",
-              style: TextStyle(color: Colors.green.shade900, fontSize: 20),
-            ),
-          ],
-        ),
-
-        Divider(),
-        Text(
-          "Spent",
-          style: Theme.of(context)
-              .textTheme
-              .labelMedium!
-              .copyWith(fontWeight: FontWeight.bold),
-        ),
-        SizedBox(height: 8),
-        // Display monthly expenses
-        for (var expense in monthlyExpenses)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('${expense['date']}'),
-                  Text('${expense['monthcategory']}'),
-                  Text('₹${expense['monthlyamount']}'),
-                ],
-              ),
-              SizedBox(height: 4),
-              Text('${expense['remarks']}', style: TextStyle(fontSize: 12, color: Colors.grey)),
-              Divider(),
-            ],
-          ),
-      ],
-    );
-  }
-
 
 }

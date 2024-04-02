@@ -148,7 +148,7 @@ class _MonthlyBudgetState extends State<MonthlyBudget> {
   }
 
   void _showSetAmountDialog() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
+   // SharedPreferences prefs = await SharedPreferences.getInstance();
     double? newAmount = await showDialog<double>(
       context: context,
       builder: (BuildContext context) {
@@ -172,7 +172,7 @@ class _MonthlyBudgetState extends State<MonthlyBudget> {
           actions: [
             ElevatedButton(
               onPressed: () async {
-                await prefs.setDouble('enteredAmount', enteredAmount ?? 0.0);
+               // await prefs.setDouble('enteredAmount', enteredAmount ?? 0.0);
                 Navigator.of(context).pop(enteredAmount);
               },
               style: ElevatedButton.styleFrom(

@@ -1,11 +1,13 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:mybudget/spent.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'Trip.dart';
 import 'TripEdit.dart';
 import 'dashboard.dart';
 import 'duplicate.dart';
+import 'package:http/http.dart' as http;
+
 
 class TripDashboard extends StatefulWidget {
   const TripDashboard({super.key});
@@ -13,107 +15,176 @@ class TripDashboard extends StatefulWidget {
   @override
   _TripDashboardState createState() => _TripDashboardState();
 }
+
+
 class _TripDashboardState extends State<TripDashboard> {
   List<Map<String, dynamic>> trips = [];
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  List<Map<String, dynamic>> tripData = []; // Change the type to a list of maps
+  Map<String, dynamic> trip = {};
+
+  Future<void> fetchData() async {
+    final response = await http.get(Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/tripdashBoard.php'));
+    if (response.statusCode == 200) {
+      List<dynamic> responseData = json.decode(response.body);
+      List<Map<String, dynamic>> parsedData = [];
+      // Ensure that each item in the responseData list is of type Map<String, dynamic>
+      responseData.forEach((dynamic item) {
+        if (item is Map<String, dynamic>) {
+          parsedData.add(item);
+        }
+      });
+      setState(() {
+        tripData = parsedData;
+      });
+    } else {
+      print('Failed to load data');
+    }
+  }
+
+
+  Future<void> closeTrip(String tripId) async {
+    try {
+      var response = await http.put(
+        Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/tripdashboard.php'),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode(<String, dynamic>{
+          'trip_id': tripId,
+          'status': 'close', // Set the status to "close"
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        Navigator.push(context, MaterialPageRoute(builder: (context)=> const TripDashboard()));
+        print('Trip closed successfully');
+      } else {
+        print('Failed to close trip: ${response.body}');
+        throw Exception('Failed to close trip');
+      }
+    } catch (e) {
+      print('Exception while closing trip: $e');
+      rethrow; // Rethrow the exception for higher-level error handling
+    }
+  }
+
+
+  List<Map<String,dynamic>> spentData=[];
+  Future<void> fetchTSpent(String? tripId) async {
+    try {
+      // print("trip Id:${widget.tripId}");
+      final url = Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/Trip.php?table=trip_spent&trip_id=$tripId');
+      final response = await http.get(url);
+      print("id members URL :$url" );
+      print("M response.statusCode :${response.statusCode}" );
+      print("M response .body :${response.body}" );
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        if (responseData is List<dynamic>) {
+          setState(() {
+            spentData = responseData.cast<Map<String, dynamic>>();
+
+          });
+        } else {
+          print('Invalid response data format');
+        }
+      } else {
+        // Handle non-200 status code
+        print('Error: ${response.statusCode}');
+      }
+    } catch (error) {
+      // Handle other errors
+      print('Error: $error');
+    }
+  }
+
+
+
 
   @override
   void initState() {
     super.initState();
-    _loadDataFromSharedPreferences();
+    //_loadDataFromSharedPreferences();
+    fetchData();
   }
 
-  void _loadDataFromSharedPreferences() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-
-    List<String> tripIds = prefs.getStringList('reportIds') ?? [];
-    List<Map<String, dynamic>> tempTrips = [];
-
-    for (String tripId in tripIds) {
-      String tripNameKey = '$tripId:tripName';
-      String sourceKey = '$tripId:source';
-      String fromDateKey = '$tripId:fromDate';
-      String toDateKey = '$tripId:toDate';
-      String totalBudgetKey = '$tripId:totalBudget';
-      String noOfPersonKey = '$tripId:noOfPerson';
-      String personKey = '$tripId:persons';
-      String expensesKey = '$tripId:expenses';
-      String totalAmountPersonKey = '$tripId:totalAmountPerson';
-
-      String tripName = prefs.getString(tripNameKey) ?? '';
-      String source = prefs.getString(sourceKey) ?? '';
-      String fromDate = prefs.getString(fromDateKey) ?? '';
-      String toDate = prefs.getString(toDateKey) ?? '';
-      String noOfPerson = prefs.getString(noOfPersonKey) ?? '';
-      String totalBudget = prefs.getString(totalBudgetKey) ?? '';
-      String totalAmountPerson = prefs.getString(totalAmountPersonKey) ?? '';
+  Future<void> _showAlertDialog() async {
+    return showDialog(
 
 
-      List<String>? expensesListPerson = prefs.getStringList(personKey);
-      List<String>? expensesList = prefs.getStringList(expensesKey);
+      barrierDismissible: false,
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Select an option', style: Theme.of(context).textTheme.bodyLarge),
+          insetPadding: EdgeInsets.zero,
 
-      List<Map<String, String>> expenses2 = [];
-      if (expensesListPerson != null) {
-        expenses2 = expensesListPerson.map((expense2) {
-          List<String> parts = expense2.split(':');
-          return {
-            'name': parts[0],
-            'perAmount': parts[1],
-          };
-        }).toList();
-      }
-      List<Map<String, String>> expenses = [];
-      if (expensesList != null) {
-        expenses = expensesList.map((expense) {
-          List<String> parts = expense.split(':');
-          return {
-            'category': parts[0],
-            'amount': parts[1],
-          };
-        }).toList();
-      }
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: BorderSide(color: Colors.deepPurple),
+          ),
 
-      tempTrips.add({
-        'tripId': tripId, // Include tripId
-        'tripName': tripName,
-        'source': source,
-        'fromDate': fromDate,
-        'toDate': toDate,
-        'totalBudget': totalBudget.toString(),
-        'totalAmountPerson': totalAmountPerson.toString(),
-        'noOfPerson': noOfPerson,
-        'persons': expenses2,
-        'expenses': expenses,
-      });
-    }
-    setState(() {
-      trips = tempTrips;
-    });
-  }
+          // contentPadding: EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0), // Customize padding for width and height
+          content: SizedBox(
+            width: 200, // Set your desired width
+            height: 120,
+            child: Container(
+              // Adjust height as needed
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  TextButton(
+                    onPressed: () {},
+                    child: ListTile(
+                      title: GestureDetector(
+                        onTap: () {
+                          // Handle text click, you can navigate or perform any action here
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => TripDetails(userId: '7', type: 'Friends Trip',)));
+                        },
+                        child: Text(
+                          'Friends Trip',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    ),
+                  ),
+                  /// Friendly Trip
+                  TextButton
+                    (
+                    onPressed: () {  },
+                    child: ListTile(
+                      title: GestureDetector(
 
+                        onTap: () {
+                          // Handle text click, you can navigate or perform any action here
+                         Navigator.push(context, MaterialPageRoute(builder: (context) => TripDetails(userId: '7', type: "Trip Organizer",)));
+                        },
+                        child: Text('Trip Organizer',style:  Theme.of(context).textTheme.bodySmall),
+                      ),
+                    ),
+                  ), /// Admisnstaive trip
 
-  Future<void> _deleteTrip(String tripId) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String>? tripIds = prefs.getStringList('reportIds');
+                ],
+              ),
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => TripDashboard())); // Close the dialog
+              },
+              style: ButtonStyle(
+                backgroundColor: MaterialStateProperty.all<Color>(Colors.teal),
+              ),
+              child: Text('Cancel',style: TextStyle(color: Colors.white)),
+            ),
+          ],
+          backgroundColor: Colors.teal.shade50,
 
-    if (tripIds != null) {
-      tripIds.remove(tripId);
-      await prefs.setStringList('reportIds', tripIds);
-
-      // Remove other trip data from shared preferences
-      await prefs.remove('$tripId:tripName');
-      await prefs.remove('$tripId:source');
-      await prefs.remove('$tripId:fromDate');
-      await prefs.remove('$tripId:toDate');
-      await prefs.remove('$tripId:totalBudget');
-      await prefs.remove('$tripId:noOfPerson');
-      await prefs.remove('$tripId:persons');
-      await prefs.remove('$tripId:expenses');
-      await prefs.remove('$tripId:totalAmountPerson');
-
-      // Reload data from SharedPreferences
-      _loadDataFromSharedPreferences();
-    }
+        );
+      },
+    );
   }
 
   bool isContainerExpanded = false;
@@ -161,10 +232,9 @@ class _TripDashboardState extends State<TripDashboard> {
                 SizedBox(height: 5),
                 GestureDetector(
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const TripDetails()),
-                    );
+                    _showAlertDialog();
+
+
                   },
                   child: Padding(
                     padding: const EdgeInsets.all(8.0),
@@ -192,10 +262,7 @@ class _TripDashboardState extends State<TripDashboard> {
                           children: [
                             TyperAnimatedTextKit(
                                 onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (context) => const TripDetails()),
-                                  );
+                                  _showAlertDialog();
                                 },
                                 isRepeatingAnimation: true,
                                 speed: Duration(milliseconds: 100),
@@ -207,8 +274,7 @@ class _TripDashboardState extends State<TripDashboard> {
                       ),
                     ),
                   ),
-                ),
-                SizedBox(height: 5),
+                ),                SizedBox(height: 5),
                 Visibility(
                   visible: trips.isNotEmpty,
                   child: Padding(
@@ -239,36 +305,14 @@ class _TripDashboardState extends State<TripDashboard> {
                   ),
                 ),
                 const SizedBox(height: 5),
+                for (var trip in tripData) buildTripContainer(context, trip),
                 ListView.builder(
                   shrinkWrap: true,
                   itemCount: trips.length,
                   itemBuilder: (context, index) {
-                    Trip trip = Trip(
-                      name: trips[index]['tripName'] ?? 'No Name',
-                      id: trips[index]['tripId'] ?? 'No Name',
-                      date: trips[index]['source'] ?? 'No Date',
-                      budget: trips[index]['totalBudget'] ?? '',
-                      members: trips[index]['noOfPerson'] ?? '0',
-                      expenses: trips[index]['expense'] ?? [],
-                      totalAmountPerson: trips[index]['totalAmountPerson'] ?? '0.0',
-                    );
-                    return buildTripContainer(context, trip, index);
+                    return buildTripContainer(context, trips[index]);
                   },
                 ),
-
-/*
-                ElevatedButton(
-                  onPressed: () {
-                    // Navigate to the second page
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => BudgetApp()),
-                    );
-                  },
-                  child: Text('Click'),
-                ),
-*/
-
               ],
             ),
           ),
@@ -276,25 +320,26 @@ class _TripDashboardState extends State<TripDashboard> {
       ),
     );
   }
-
-  Widget buildTripContainer(BuildContext context, Trip trip, int index) {
-    return GestureDetector(
+  Widget buildTripContainer(BuildContext context, Map<String, dynamic> trip) {
+    return GestureDetector (
       onTap: () {
+        print("budget: ${trip['budget'].toString()}");
+        print("budget: ${trip['id'].toString()}");
+        print("budget: ${trip['member']}");
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => SpentDetails(
-              tripId: trip.id,
-              budget: trip.budget,
-              tripid: trip.id,
-              members: trip.members,
-              receivedamnt: trip.totalAmountPerson,
-              expenses: trips[index]['expenses'],
-              expenses2: trips[index]['persons'],
+              budget: trip['budget'].toString(),
+              tripid: trip['trip_id'].toString(),
+              members: trip['members'].toString(),
+             // expenses: const [],
+              //expenses2: const [],
+              receivedamnt:trip['received_amount'].toString(), tripname: '',
+
             ),
           ),
         );
-        // Add logic for tapping the container if needed
       },
       child: Padding(
         padding: const EdgeInsets.all(8.0),
@@ -303,9 +348,9 @@ class _TripDashboardState extends State<TripDashboard> {
           margin: EdgeInsets.all(8.0),
           padding: EdgeInsets.all(8.0),
           decoration: BoxDecoration(
-            color: Colors.white, // Set the background color to white
+            color: Colors.white,
             borderRadius: BorderRadius.circular(5),
-            border: Border.all(color: Color(0xFF8155BA), width: 1), // Add a black border
+            border: Border.all(color: Color(0xFF8155BA), width: 1),
             boxShadow: [
               BoxShadow(
                 color: Colors.grey.withOpacity(0.5),
@@ -321,8 +366,8 @@ class _TripDashboardState extends State<TripDashboard> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.only(left: 20),
-                    child: Text('Trip Name: ${trip.name}', style: Theme.of(context).textTheme.labelMedium),
+                    padding: const EdgeInsets.only(left: 10),
+                    child: Text('Trip Name: ${trip['trip_name']}', style: Theme.of(context).textTheme.labelMedium),
                   ),
                   PopupMenuButton(
                     itemBuilder: (BuildContext context) => [
@@ -334,10 +379,10 @@ class _TripDashboardState extends State<TripDashboard> {
                         child: Text("Delete"),
                         value: "delete",
                       ),
-                      PopupMenuItem(
-                        child: Text("TripClose"),
-                        value: "TripClose",
-                      ),
+                      // PopupMenuItem(
+                      //   child: Text("Trip Close"),
+                      //   value: "Trip Close",
+                      // ),
                     ],
                     onSelected: (value) {
                       if (value == "edit") {
@@ -345,18 +390,23 @@ class _TripDashboardState extends State<TripDashboard> {
                           context,
                           MaterialPageRoute(
                             builder: (context) => TripEdit(
-                              tripId: trips[index]['tripId'],
+                                id: '7',
+                                tripId: trip['trip_id'],
+                                fromdate:trip['from_date'],
+                                toDate:trip['to_date'],
+                                tripType:trip['trip_type'],
+                                tripName:trip['trip_name']
                             ),
                           ),
                         );
-                      } else if (value == "delete") {
+                      }
+                      else if (value == "delete") {
                         showDialog(
                           context: context,
                           builder: (BuildContext context) {
                             return AlertDialog(
                               title: Text("Confirm Delete"),
-                              content: Text(
-                                  "Are you sure you want to delete this trip?"),
+                              content: Text("Are you sure you want to delete this trip?"),
                               actions: <Widget>[
                                 TextButton(
                                   child: Text("Cancel"),
@@ -367,17 +417,61 @@ class _TripDashboardState extends State<TripDashboard> {
                                 TextButton(
                                   child: Text("Delete"),
                                   onPressed: () async {
-                                    // Call the delete function here
-                                    await _deleteTrip(trips[index]['tripId']);
+                                    // Send DELETE request to delete data
+                                    var response = await http.delete(
+                                      Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/trip.php'),
+                                      headers: <String, String>{
+                                        'Content-Type': 'application/json; charset=UTF-8',
+                                      },
+                                      body: jsonEncode(<String, String>{
+                                        'trip_id': trip['trip_id'],
+                                      }),
+                                    );
+
+                                    if (response.statusCode == 200) {
+                                      Navigator.push(context, MaterialPageRoute(builder: (context)=> const TripDashboard()));
+                                    } else {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('Failed to delete data')));
+                                    }
+                                  },
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      }
+
+                      else if (value == "Trip Close") {
+                        showDialog(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              title: Text("Confirm Delete"),
+                              content: Text(
+                                  "Are you sure you want to Close this trip?"),
+                              actions: <Widget>[
+                                TextButton(
+                                  child: Text("Cancel"),
+                                  onPressed: () {
                                     Navigator.of(context).pop();
                                   },
                                 ),
+                                TextButton(
+                                  child: Text("Yes"),
+                                  onPressed: () async {
+                                    await closeTrip(trip['trip_id']);
+                                    // Send DELETE request to delete data
+                                  },
+                                ),
+
 
                               ],
                             );
                           },
                         );
                       }
+
                     },
                   ),
                 ],
@@ -386,7 +480,6 @@ class _TripDashboardState extends State<TripDashboard> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-
                   Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -399,7 +492,7 @@ class _TripDashboardState extends State<TripDashboard> {
                               style: Theme.of(context).textTheme.labelMedium,
                             ),
                             TextSpan(
-                              text: '${trip.date}',
+                              text: '${trip['location']}',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ],
@@ -414,27 +507,12 @@ class _TripDashboardState extends State<TripDashboard> {
                               style: Theme.of(context).textTheme.labelMedium,
                             ),
                             TextSpan(
-                              text: '${trip.members}',
+                              text: '${trip['members']}',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ],
                         ),
                       ),
-                      SizedBox(height: 5,),
-                    /*  RichText(
-                        text: TextSpan(
-                          children: [
-                            TextSpan(
-                              text: 'id : ',
-                              style: Theme.of(context).textTheme.labelMedium,
-                            ),
-                            TextSpan(
-                              text: '${trip.id}',
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                          ],
-                        ),
-                      ),*/
                     ],
                   ),
                   Column(
@@ -449,7 +527,7 @@ class _TripDashboardState extends State<TripDashboard> {
                               style: Theme.of(context).textTheme.labelMedium,
                             ),
                             TextSpan(
-                              text: '${double.parse(trip.budget).toStringAsFixed(2)}',
+                              text: '${trip['budget']}',
                               //text: '${trip.budget}',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
@@ -465,7 +543,7 @@ class _TripDashboardState extends State<TripDashboard> {
                               style: Theme.of(context).textTheme.labelMedium,
                             ),
                             TextSpan(
-                              text: '${double.parse(trip.totalAmountPerson).toStringAsFixed(2)}',
+                              text: '${trip['received_amount']}',
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ],
@@ -478,11 +556,14 @@ class _TripDashboardState extends State<TripDashboard> {
               SizedBox(height: 5,)
             ],
           ),
+
         ),
       ),
     );
   }
 }
+
+
 class Trip {
   final String name;
   final String id;
@@ -501,3 +582,4 @@ class Trip {
     required this.expenses,
   });
 }
+

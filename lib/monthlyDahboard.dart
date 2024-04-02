@@ -1,15 +1,21 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+//import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import 'DashBoard.dart';
 import 'MonthlyBudget2.dart';
+import 'package:http/http.dart' as http;
 
 class MonthlyDashboard extends StatefulWidget {
-  final String? user_id;
-  const MonthlyDashboard({Key? key, required  this.user_id}) : super(key: key);
+  final String uid;
+  const MonthlyDashboard({Key? key,
+    required  this.uid
+  }) : super(key: key);
 
   @override
   _MonthlyDashboardState createState() => _MonthlyDashboardState();
@@ -23,24 +29,17 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
   String remainingValue = "300";
 
   final TextEditingController monthlyincome = TextEditingController();
-  final TextEditingController monthlyincomeType = TextEditingController();
+  TextEditingController monthlyincomeType = TextEditingController();
   TextEditingController _textEditingControllerFrom = TextEditingController();
   TextEditingController _textEditingControllerTo = TextEditingController();
+
+
+
+
 
   String? _monthlyincomeTypeError;
   String? _monthlyincomeAmountError;
 
-  String? _validateFormField2(String? value, String fieldName) {
-    // Regular expression to check if the input contains only alphabets
-    RegExp alphabetsOnly = RegExp(r'^[a-zA-Z]+$');
-
-    if (value == null || value.isEmpty) {
-      return '$fieldName is required';
-    } else if (!alphabetsOnly.hasMatch(value)) {
-      return '$fieldName should contain only alphabets';
-    }
-    return null;
-  }
 
   String? _validateFormField(String? value, String fieldName) {
     if (value == null || value.isEmpty) {
@@ -48,18 +47,146 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
     }
     return null;
   }
+  List<dynamic> monthlyData = [];
+  String? fromDate2;
+  String? toDate2;
+  Future<void> fetchData2() async {
+    const url = 'http://localhost/BUDGET/lib/BUDGETAPI/get_daterange.php'; // Replace with your API endpoint
+    final response = await http.get(Uri.parse('$url?uid=${widget.uid}'));
 
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      setState(() {
+        fromDate2 = data['fromDate'];
+        //toDate2 = data['toDate'];
+      });
+    } else {
+      throw Exception('Failed to load data');
+    }
+  }
+  Future<void> insertMonthlyData2()async {
+    try{
+      final url=Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/MonthlyDashBoard.php');
+      final DateTime fromparsedDate = DateFormat('dd-MM-yyyy').parse(_textEditingControllerFrom.text);
+      final fromDate = DateFormat('yyyy-MM-dd').format(fromparsedDate);
+      final DateTime toparsedDate = DateFormat('dd-MM-yyyy').parse(_textEditingControllerTo.text);
+      final toDate = DateFormat('yyyy-MM-dd').format(toparsedDate);
+      final response = await http.post(
+        url,
+        body: jsonEncode({
+          "uid":widget.uid,
+          "incomeType": monthlyincomeType.text,
+          "incomeAmt": monthlyincome.text,
+          "fromDate": fromDate,
+          "toDate": toDate,
+          "status":"open",
+        }),
+      );
 
+      if (response.statusCode == 200) {
+        print("Trip added successfully!");
+        print("Response body: ${response.body}");
+      } else {
+        print("Error: ${response.reasonPhrase}");
+      }
+    }
+    catch (e){
+      print("Error during trip addition: $e");
+    }
+  }
+  Future<void> fetchData() async {
+    final response = await http.get(
+        Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/MonthlyDashBoard.php'));
 
-  @override
-  void initState() {
-    super.initState();
-    fetchDataFromSharedPreferences();
+    if (response.statusCode == 200) {
+      setState(() {
+        monthlyData = json.decode(response.body);
+      });
+    } else {
+      print('Failed to load data');
+    }
+  }
+  Future<void> insertMonthlyData()async {
+    try{
+      final url=Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/date_range.php');
+      final DateTime fromparsedDate = DateFormat('dd').parse(_textEditingControllerFrom.text);
+      final fromDate = DateFormat('dd').format(fromparsedDate);
+      final response = await http.post(
+        url,
+        body: jsonEncode({
+          "uid": widget.uid,
+          "fromDate": fromDate,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        print("Trip added successfully!");
+        print("Response body: ${response.body}");
+      } else {
+        print("Error: ${response.reasonPhrase}");
+      }
+    }
+    catch (e){
+      print("Error during trip addition: $e");
+    }
   }
 
 
+/*
+  Future<void> updateRecord(Map<String, dynamic> updateData) async {
+    try {
+      var response = await http.put(Uri.parse('http://localhost/mybudget2/mybudget/lib/BUDGETAPI/MonthlyDashBoard.php'),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode(updateData),
+      );
+
+      if (response.statusCode == 200) {
+        print('Record updated successfully');
+      } else {
+        print('Failed to update record: ${response.body}');
+        throw Exception('Failed to update record');
+      }
+    } catch (e) {
+      print('Exception while updating record: $e');
+      rethrow; // Rethrow the exception for higher-level error handling
+    }
+  }
+*/
+  @override
+  void initState() {
+    super.initState();
+    //fetchDataFromSharedPreferences();
+    fetchData();
+    fetchData2();
+
+  }
 
 
+  Future<DateTime?> _showCustomDatePicker(BuildContext context, {required DateTime initialDate, required int enabledDate}) async {
+    return await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(1900),
+      lastDate: DateTime(2300),
+      selectableDayPredicate: (DateTime date) {
+        return date.day == enabledDate;
+      },
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            colorScheme: ColorScheme.light(
+              primary: Color(0xFF8155BA),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+  }
+
+/*
   void fetchDataFromSharedPreferences() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     List<String>? incomeIds = prefs.getStringList('totalIncomes');
@@ -94,32 +221,7 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
       }
     }
   }
-
-  /*void fetchDataFromSharedPreferences() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String>? incomeIds = prefs.getStringList('totalIncomes');
-    if (incomeIds != null) {
-      for (String incomeId in incomeIds) {
-        String? totalIncome = prefs.getString('$incomeId:totalincome');
-        String? incomeType = prefs.getString('$incomeId:incomeType');
-        String? selectedFromDate = prefs.getString('$incomeId:selectedFromDate');
-        String? selectedToDate = prefs.getString('$incomeId:selectedToDate');
-        if (totalIncome != null && incomeType != null && selectedFromDate != null && selectedToDate != null) {
-          setState(() {
-            trips.add({
-              'incomeId': incomeId,
-              'totalIncome': totalIncome,
-              'incomeType': incomeType,
-              'selectedFromDate': selectedFromDate,
-              'selectedToDate': selectedToDate,
-            });
-          });
-        }
-      }
-    }
-  }*/
-
-  // Other methods remain unchanged
+*/
   Map<String, dynamic> trip = {};
   @override
   Widget build(BuildContext context) {
@@ -139,6 +241,176 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const DashBoard()));
             },
           ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.date_range,color: Colors.white,), // You can use any icon for the date
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (BuildContext context) {
+                    return StatefulBuilder(
+                      builder: (context, setState) {
+                        return AlertDialog(
+                          title: const Center(child: Text('Set Date Range',style: TextStyle(fontSize: 16,fontStyle: FontStyle.italic, color: Colors.green),)),
+                          insetPadding: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(color: Colors.deepPurple),
+                          ),
+                          shadowColor: Colors.deepPurple,
+                          content: SizedBox(
+                            width: 250, // Set your desired width
+                            height: 180,
+                            child: Container(
+
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                    children: [
+                                      SizedBox(
+                                        height: 50,
+                                        width: 200,
+                                        child: TextFormField(
+                                          style: TextStyle(fontSize: 11),
+                                          readOnly: true,
+                                          onTap: () async {
+                                            DateTime? pickDate = await showDatePicker(
+                                              context: context,
+                                              initialDate: DateTime.now(),
+                                              firstDate: DateTime(1900),
+                                              lastDate: DateTime(2300),
+                                              builder: (BuildContext context, Widget? child) {
+                                                return Theme(
+                                                  data: ThemeData.light()
+                                                      .copyWith(
+                                                    colorScheme:
+                                                    ColorScheme.light(
+                                                      primary:
+                                                      Color(0xFF8155BA),
+                                                    ),
+                                                  ),
+                                                  child: child!,
+                                                );
+                                              },
+                                            );
+                                            if (pickDate == null) return;
+                                            {
+                                              setState(() {
+                                                _textEditingControllerFrom.text = DateFormat('dd').format(pickDate);
+                                              });
+                                            }
+                                          },
+                                          controller:
+                                          _textEditingControllerFrom, // Set the initial value of the field to the selected date
+                                          decoration: InputDecoration(
+                                            suffixIcon: Icon(Icons.date_range,color: Colors.teal,size: 14,),
+                                            // filled: true,
+                                            // fillColor: Colors.white,
+                                            labelText: "Start Date",
+                                            labelStyle: Theme.of(context).textTheme.labelMedium,
+                                            // border: OutlineInputBorder(
+                                            //   //  borderRadius: BorderRadius.circular(8),
+                                            // ),
+                                          ),
+                                          validator: (value) => _validateFormField(value, 'From'),
+
+                                        ),
+                                      ),
+                                      /*SizedBox(
+                                        height: 40,
+                                        width: 120,
+                                        child: TextFormField(
+                                          style: TextStyle(fontSize: 11),
+                                          readOnly: true,
+                                          onTap: () async {
+                                            DateTime? pickDate = await showDatePicker(
+                                              context: context,
+                                              initialDate: DateTime.now(),
+                                              firstDate: DateTime.now(),
+                                              lastDate: DateTime(2300),
+                                              builder: (BuildContext context, Widget? child) {
+                                                return Theme(
+                                                  data: ThemeData.light()
+                                                      .copyWith(
+                                                    colorScheme:
+                                                    ColorScheme.light(
+                                                      primary:
+                                                      Color(0xFF8155BA),
+                                                    ),
+                                                  ),
+                                                  child: child!,
+                                                );
+                                              },
+                                            );
+                                            if (pickDate == null) return;
+                                            {
+                                              setState(() {
+                                                _textEditingControllerTo.text = DateFormat('dd-MM-yyyy').format(pickDate);
+                                              });
+                                            }
+                                          },
+                                          controller:
+                                          _textEditingControllerTo, // Set the initial value of the field to the selected date
+                                          decoration: InputDecoration(
+                                            suffixIcon: Icon(Icons.date_range,color: Colors.teal,size: 14,),
+                                            filled: true,
+                                            fillColor: Colors.white,
+                                            labelText: "To",
+                                            labelStyle: Theme.of(context).textTheme.labelMedium,
+                                            border: OutlineInputBorder(
+                                              //  borderRadius: BorderRadius.circular(8),
+                                            ),
+                                          ),
+                                          validator: (value) => _validateFormField(value, 'To'),
+                                        ),
+                                      ),*/
+                                    ],
+                                  ),
+                                  SizedBox(height: 10,),
+                                  ElevatedButton(
+                                    onPressed: () async {
+                                      // Validate the form
+                                      if (_formKey.currentState!.validate()) {
+
+
+                                        insertMonthlyData();
+
+
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => MonthlyDashboard(uid: ''), // Pass UID to the dashboard if needed
+                                          ),
+                                        );
+                                      } else {
+                                        // Fields are not valid, trigger a rebuild to display error messages
+                                        setState(() {});
+                                      }
+                                    },
+                                    style: ButtonStyle(
+                                      backgroundColor: MaterialStateProperty.all<Color>(Colors.teal),
+                                    ),
+                                    child: Text("Ok", style: TextStyle(color: Colors.white)),
+                                  ),
+                                  SizedBox(height: 20,),
+                                  const Text('Note: This range will be applied to all budget calculations and analyses. ',style: TextStyle(fontSize: 10,fontStyle: FontStyle.italic, color: Colors.black),),
+
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          backgroundColor: Colors.teal.shade50,
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ],
           titleSpacing: 00.0,
           centerTitle: true,
           toolbarHeight: 60.2,
@@ -169,7 +441,7 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
                         return StatefulBuilder(
                           builder: (context, setState) {
                             return AlertDialog(
-                              title: Text("Set Your Date", style: Theme.of(context).textTheme.bodyLarge),
+                              title: const Center(child: Text('Set your Income',style: TextStyle(fontSize: 16,fontStyle: FontStyle.italic, color: Colors.green),)),
                               insetPadding: EdgeInsets.zero,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
@@ -178,115 +450,167 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
                               shadowColor: Colors.deepPurple,
                               content: SizedBox(
                                 width: 250, // Set your desired width
-                                height: 220,
+                                height: 350,
                                 child: Container(
+
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.start,
                                     children: [
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                        children: [
-                                          SizedBox(
-                                            height: 40,
-                                            width: 120,
-                                            child: TextFormField(
-                                              style: TextStyle(fontSize: 11),
-                                              readOnly: true,
-                                              onTap: () async {
-                                                DateTime? pickDate = await showDatePicker(
-                                                  context: context,
-                                                  initialDate: DateTime.now(),
-                                                  firstDate: DateTime.now(),
-                                                  lastDate: DateTime(2300),
-                                                  builder: (BuildContext context, Widget? child) {
-                                                    return Theme(
-                                                      data: ThemeData.light()
-                                                          .copyWith(
-                                                        colorScheme:
-                                                        const ColorScheme.light(
-                                                          primary:
-                                                          Color(0xFF8155BA),
-                                                        ),
-                                                      ),
-                                                      child: child!,
-                                                    );
-                                                  },
-                                                );
-                                                if (pickDate == null) return;
-                                                {
-                                                  setState(() {
-                                                    _textEditingControllerFrom.text = DateFormat('dd-MM-yyyy').format(pickDate);
-                                                  });
-                                                }
-                                              },
-                                              controller:
-                                              _textEditingControllerFrom, // Set the initial value of the field to the selected date
-                                              decoration: InputDecoration(
-                                                suffixIcon: Icon(Icons.date_range,color: Colors.teal,size: 14,),
-                                                filled: true,
-                                                fillColor: Colors.white,
-                                                labelText: "From",
-                                                labelStyle: Theme.of(context).textTheme.labelMedium,
-                                                border: OutlineInputBorder(
-                                                  //  borderRadius: BorderRadius.circular(8),
-                                                ),
-                                              ),
-                                              validator: (value) => _validateFormField(value, 'From'),
-
-                                            ),
+                                      Text('Start Date: ${fromDate2!}'),
+                                      SizedBox(
+                                        height: 50,
+                                        width: 200,
+                                        child: TextFormField(
+                                          style: TextStyle(fontSize: 11),
+                                          readOnly: true,
+                                          onTap: () async {
+                                            DateTime initialDate = DateTime(DateTime.now().year, DateTime.now().month, 15);
+                                            DateTime? pickDate = await _showCustomDatePicker(
+                                              context,
+                                              initialDate: initialDate,
+                                              enabledDate: 15,
+                                            );
+                                            if (pickDate == null) return;
+                                            setState(() {
+                                              _textEditingControllerFrom.text = DateFormat('dd-MM-yyyy').format(pickDate);
+                                            });
+                                          },
+                                          controller: _textEditingControllerFrom,
+                                          decoration: InputDecoration(
+                                            suffixIcon: Icon(Icons.date_range, color: Colors.teal, size: 14,),
+                                            labelText: "From",
+                                            labelStyle: Theme.of(context).textTheme.labelMedium,
                                           ),
+                                          validator: (value) => _validateFormField(value, 'From'),
+                                        ),
+                                      ),
 
-                                          SizedBox(
-                                            height: 40,
-                                            width: 120,
-                                            child: TextFormField(
-                                              style: TextStyle(fontSize: 11),
-                                              readOnly: true,
-                                              onTap: () async {
-                                                DateTime? pickDate = await showDatePicker(
-                                                  context: context,
-                                                  initialDate: DateTime.now(),
-                                                  firstDate: DateTime.now(),
-                                                  lastDate: DateTime(2300),
-                                                  builder: (BuildContext context, Widget? child) {
-                                                    return Theme(
-                                                      data: ThemeData.light()
-                                                          .copyWith(
-                                                        colorScheme:
-                                                        ColorScheme.light(
-                                                          primary:
-                                                          Color(0xFF8155BA),
-                                                        ),
-                                                      ),
-                                                      child: child!,
-                                                    );
-                                                  },
-                                                );
-                                                if (pickDate == null) return;
-                                                {
-                                                  setState(() {
-                                                    _textEditingControllerTo.text = DateFormat('dd-MM-yyyy').format(pickDate);
-                                                  });
-                                                }
-                                              },
-                                              controller:
-                                              _textEditingControllerTo, // Set the initial value of the field to the selected date
-                                              decoration: InputDecoration(
-                                                suffixIcon: Icon(Icons.date_range,color: Colors.teal,size: 14,),
-                                                filled: true,
-                                                fillColor: Colors.white,
-                                                labelText: "To",
-                                                labelStyle: Theme.of(context).textTheme.labelMedium,
-                                                border: OutlineInputBorder(
-                                                  //  borderRadius: BorderRadius.circular(8),
-                                                ),
-                                              ),
-                                              validator: (value) => _validateFormField(value, 'To'),
-                                            ),
+// Example usage of the custom date picker for the "To" date field
+                                      SizedBox(
+                                        height: 50,
+                                        width: 200,
+                                        child: TextFormField(
+                                          style: TextStyle(fontSize: 11),
+                                          readOnly: true,
+                                          onTap: () async {
+                                            DateTime initialDate = DateTime(DateTime.now().year, DateTime.now().month, 14);
+                                            DateTime? pickDate = await _showCustomDatePicker(
+                                              context,
+                                              initialDate: initialDate,
+                                              enabledDate: 14,
+                                            );
+                                            if (pickDate == null) return;
+                                            setState(() {
+                                              _textEditingControllerTo.text = DateFormat('dd-MM-yyyy').format(pickDate);
+                                            });
+                                          },
+                                          controller: _textEditingControllerTo,
+                                          decoration: InputDecoration(
+                                            suffixIcon: Icon(Icons.date_range, color: Colors.teal, size: 14,),
+                                            labelText: "To",
+                                            labelStyle: Theme.of(context).textTheme.labelMedium,
                                           ),
-                                        ],
-                                      ), /// DATE
-                                      SizedBox(height: 15),
+                                          validator: (value) => _validateFormField(value, 'To'),
+                                        ),
+                                      ),
+                                      /* SizedBox(
+                                        height: 50,
+                                        width: 200,
+                                        child: TextFormField(
+                                          style: TextStyle(fontSize: 11),
+                                          readOnly: true,
+                                          onTap: () async {
+                                            DateTime? pickDate = await showDatePicker(
+                                              context: context,
+                                              initialDate: DateTime.now(),
+                                              firstDate: DateTime(1900),
+                                              lastDate: DateTime(2300),
+                                              builder: (BuildContext context, Widget? child) {
+                                                return Theme(
+                                                  data: ThemeData.light()
+                                                      .copyWith(
+                                                    colorScheme:
+                                                    ColorScheme.light(
+                                                      primary:
+                                                      Color(0xFF8155BA),
+                                                    ),
+                                                  ),
+                                                  child: child!,
+                                                );
+                                              },
+                                            );
+                                            if (pickDate == null) return;
+                                            {
+                                              setState(() {
+                                                _textEditingControllerFrom.text = DateFormat('dd').format(pickDate);
+                                              });
+                                            }
+                                          },
+                                          controller:
+                                          _textEditingControllerFrom, // Set the initial value of the field to the selected date
+                                          decoration: InputDecoration(
+                                            suffixIcon: Icon(Icons.date_range,color: Colors.teal,size: 14,),
+                                            // filled: true,
+                                            // fillColor: Colors.white,
+                                            labelText: "From",
+                                            labelStyle: Theme.of(context).textTheme.labelMedium,
+                                            // border: OutlineInputBorder(
+                                            //   //  borderRadius: BorderRadius.circular(8),
+                                            // ),
+                                          ),
+                                          validator: (value) => _validateFormField(value, 'From'),
+
+                                        ),
+                                      ),
+                                      SizedBox(
+                                        height: 50,
+                                        width: 200,
+                                        child: TextFormField(
+                                          style: TextStyle(fontSize: 11),
+                                          readOnly: true,
+                                          onTap: () async {
+                                            DateTime? pickDate = await showDatePicker(
+                                              context: context,
+                                              initialDate: DateTime.now(),
+                                              firstDate: DateTime.now(),
+                                              lastDate: DateTime(2300),
+                                              builder: (BuildContext context, Widget? child) {
+                                                return Theme(
+                                                  data: ThemeData.light()
+                                                      .copyWith(
+                                                    colorScheme:
+                                                    ColorScheme.light(
+                                                      primary:
+                                                      Color(0xFF8155BA),
+                                                    ),
+                                                  ),
+                                                  child: child!,
+                                                );
+                                              },
+                                            );
+                                            if (pickDate == null) return;
+                                            {
+                                              setState(() {
+                                                _textEditingControllerTo.text = DateFormat('dd-MM-yyyy').format(pickDate);
+                                              });
+                                            }
+                                          },
+                                          controller:
+                                          _textEditingControllerTo, // Set the initial value of the field to the selected date
+                                          decoration: InputDecoration(
+                                            suffixIcon: Icon(Icons.date_range,color: Colors.teal,size: 14,),
+                                            // filled: true,
+                                            // fillColor: Colors.white,
+                                            labelText: "To",
+                                            labelStyle: Theme.of(context).textTheme.labelMedium,
+                                            // border: OutlineInputBorder(
+                                            //   //  borderRadius: BorderRadius.circular(8),
+                                            // ),
+                                          ),
+                                          validator: (value) => _validateFormField(value, 'To'),
+                                        ),
+                                      ),*/
+                                      SizedBox(height: 10),
                                       SizedBox(
                                         height: 70,
                                         width: 250,
@@ -297,8 +621,8 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
                                               style: Theme.of(context).textTheme.bodyMedium,
                                               controller: monthlyincomeType,
                                               decoration: InputDecoration(
-                                                filled: true,
-                                                fillColor: Colors.white,
+                                                // filled: true,
+                                                // fillColor: Colors.white,
                                                 hintText: 'Income Type',
                                                 labelStyle: Theme.of(context).textTheme.bodySmall,
                                                 contentPadding: EdgeInsets.symmetric(vertical: 10.0, horizontal: 10.0),
@@ -325,8 +649,7 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
                                           ],
                                         ),
                                       ),
-                                      ///Income Type
-                                      SizedBox(height: 15),
+                                      SizedBox(height: 2),
                                       SizedBox(
                                         height: 70,
                                         width: 250,
@@ -334,11 +657,10 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
                                           children: [
                                             TextFormField(
                                               style: Theme.of(context).textTheme.bodyMedium,
-
                                               controller: monthlyincome,
                                               decoration: InputDecoration(
-                                                filled: true,
-                                                fillColor: Colors.white,
+                                                // filled: true,
+                                                // fillColor: Colors.white,
                                                 hintText: 'Income Amount',
                                                 labelStyle: Theme.of(context).textTheme.bodySmall,
                                                 contentPadding: EdgeInsets.symmetric(vertical: 10.0, horizontal: 10.0),
@@ -369,57 +691,53 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
 
 
 
-                                      ),  ///Income Amount
+                                      ),
+                                      SizedBox(height: 10),
+                                      ElevatedButton(
+                                        onPressed: () {
+                                          // Validate the form
+                                          if (_formKey.currentState!.validate()) {
+                                            // All fields are valid, proceed with your logic
+                                            if (monthlyincomeType.text.isEmpty) {
+                                              // Set error message for monthlyincomeType
+                                              setState(() {
+                                                _monthlyincomeTypeError = 'Income Type is required.';
+                                              });
+
+                                            }
+                                            else  if (monthlyincome.text.isEmpty) {
+                                              // Set error message for monthlyincomeType
+                                              setState(() {
+                                                _monthlyincomeAmountError = 'Income Amount is required.';
+                                              });
+
+                                            }
+                                            else {
+
+                                              insertMonthlyData2();
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) => MonthlyDashboard(uid: '',),
+                                                ),
+                                              );
+                                            }
+                                          } else {
+                                            // Fields are not valid, trigger a rebuild to display error messages
+                                            setState(() {});
+                                          }
+                                        },
+                                        style: ButtonStyle(
+                                          backgroundColor: MaterialStateProperty.all<Color>(Colors.teal),
+                                        ),
+                                        child: Text("Save", style: TextStyle(color: Colors.white)),
+                                      ),
 
                                     ],
                                   ),
                                 ),
                               ),
-                              actions: [
-                                ElevatedButton(
-                                  onPressed: () {
-                                    // Validate the form
-                                    if (_formKey.currentState!.validate()) {
-                                      // All fields are valid, proceed with your logic
-                                      if (monthlyincomeType.text.isEmpty) {
-                                        // Set error message for monthlyincomeType
-                                        setState(() {
-                                          _monthlyincomeTypeError = 'Income Type is required.';
-                                        });
 
-                                      }
-                                      else  if (monthlyincome.text.isEmpty) {
-                                        // Set error message for monthlyincomeType
-                                        setState(() {
-                                          _monthlyincomeAmountError = 'Income Amount is required.';
-                                        });
-
-                                      }
-                                      else {
-                                        // monthlyincomeType is not empty, proceed with saving data and navigating
-                                        _saveDataToSharedPreferences();
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) => MonthlyDashboard(user_id: "9"),
-                                          ),
-                                        );
-                                      }
-                                    } else {
-                                      // Fields are not valid, trigger a rebuild to display error messages
-                                      setState(() {});
-                                    }
-                                  },
-                                  style: ButtonStyle(
-                                    backgroundColor: MaterialStateProperty.all<Color>(Colors.teal),
-                                  ),
-                                  child: Text("Ok", style: TextStyle(color: Colors.white)),
-                                ),
-
-
-
-
-                              ],
                               backgroundColor: Colors.teal.shade50,
                             );
                           },
@@ -464,13 +782,6 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
                     ),
                   ),
                 ),
-
-                // Text(
-                //   'Month End Remaining: ${trip['monthEndRemaining'] ?? ''}',
-                // ),
-
-// Inside your onPressed callback for closing the month
-
                 SizedBox(height: 5),
                 Visibility(
                   visible: trips.isNotEmpty,
@@ -501,7 +812,9 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
                   ),
                 ),
                 const SizedBox(height: 5),
+                for (var trip in monthlyData) buildTripContainer(context, trip),
                 ListView.builder(
+
                   shrinkWrap: true,
                   itemCount: trips.length,
                   itemBuilder: (context, index) {
@@ -516,21 +829,22 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
     );
   }
 
-  Set<String> displayedIncomeIds = Set();
+  //Set<String> displayedIncomeIds = Set();
 
   Widget buildTripContainer(BuildContext context, Map<String, dynamic> trip) {
-      if (displayedIncomeIds.contains(trip['incomeId'])) {
-      return Container();
-    }
-
-    displayedIncomeIds.add(trip['incomeId']);
+    DateTime currentDate = DateTime.now();
+    DateTime toDate = DateTime.parse(trip['toDate']).toLocal(); // Convert 'toDate' to DateTime
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => MonthlyBudget2(
+              uid: trip['uid'],
               incomeId: trip['incomeId'],
+              fromDate: trip['fromDate'],
+              toDate: trip['toDate'],
+              totalIncomeAmt: trip['totalIncomeAmt'],
             ),
           ),
         );
@@ -538,7 +852,7 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
       child: Padding(
         padding: const EdgeInsets.all(8.0),
         child: Container(
-          width: 350,
+          // width: 350,
           margin: EdgeInsets.all(8.0),
           padding: EdgeInsets.all(8.0),
           decoration: BoxDecoration(
@@ -565,11 +879,11 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
                   ),*/
                   Padding(
                     padding: const EdgeInsets.only(left: 20),
-                    child: Text('From: ${trip['selectedFromDate']}', style: Theme.of(context).textTheme.labelMedium),
+                    child: Text('From: ${trip['fromDate']}', style: Theme.of(context).textTheme.labelMedium),
                   ),
                   Padding(
                     padding: const EdgeInsets.only(left: 20),
-                    child: Text('To: ${trip['selectedToDate']}', style: Theme.of(context).textTheme.labelMedium),
+                    child: Text('To: ${trip['toDate']}', style: Theme.of(context).textTheme.labelMedium),
                   ),
                   PopupMenuButton(
                     itemBuilder: (BuildContext context) => [
@@ -581,13 +895,300 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
                         child: Text("Delete"),
                         value: "delete",
                       ),
-                      const PopupMenuItem(
-                        child: Text("Close"),
-                        value: "monthClose",
-                      ),
                     ],
                     onSelected: (value) {
                       if (value == "edit") {
+                        showDialog(
+                          context: context,
+                          builder: (BuildContext context) {
+                            TextEditingController editFrom = TextEditingController(text: trip['fromDate']);
+                            TextEditingController editTo = TextEditingController(text: trip['toDate']);
+                            TextEditingController editIncomeAmt = TextEditingController(text: trip['totalIncomeAmt']);
+                            TextEditingController editIncomeType = TextEditingController(text: trip['incomeType']);
+                            //DateTime _dialogSelectedDate = _selectedDate;
+                            return StatefulBuilder(
+                              builder: (context, setState) {
+                                return AlertDialog(
+                                  title: Text(trip['incomeId'], style: Theme.of(context).textTheme.bodyLarge),
+                                  insetPadding: EdgeInsets.zero,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    side: BorderSide(color: Colors.deepPurple),
+                                  ),
+                                  shadowColor: Colors.deepPurple,
+                                  content: SizedBox(
+                                    width: 250, // Set your desired width
+                                    height: 220,
+                                    child: Container(
+
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                            children: [
+                                              SizedBox(
+                                                height: 40,
+                                                width: 120,
+                                                child: TextFormField(
+                                                  style: TextStyle(fontSize: 11),
+                                                  readOnly: true,
+                                                  onTap: () async {
+                                                    DateTime? pickDate = await showDatePicker(
+                                                      context: context,
+                                                      initialDate: DateTime.now(),
+                                                      firstDate: DateTime.now(),
+                                                      lastDate: DateTime(2300),
+                                                      builder: (BuildContext context, Widget? child) {
+                                                        return Theme(
+                                                          data: ThemeData.light()
+                                                              .copyWith(
+                                                            colorScheme:
+                                                            ColorScheme.light(
+                                                              primary:
+                                                              Color(0xFF8155BA),
+                                                            ),
+                                                          ),
+                                                          child: child!,
+                                                        );
+                                                      },
+                                                    );
+                                                    if (pickDate == null) return;
+                                                    {
+                                                      setState(() {
+                                                        editFrom.text = DateFormat('dd-MM-yyyy').format(pickDate);
+                                                      });
+                                                    }
+                                                  },
+                                                  controller: editFrom, // Set the initial value of the field to the selected date
+                                                  decoration: InputDecoration(
+                                                    suffixIcon: Icon(Icons.date_range,color: Colors.teal,size: 14,),
+                                                    filled: true,
+                                                    fillColor: Colors.white,
+                                                    labelText: "From",
+                                                    labelStyle: Theme.of(context).textTheme.labelMedium,
+                                                    border: OutlineInputBorder(
+                                                      //  borderRadius: BorderRadius.circular(8),
+                                                    ),
+                                                  ),
+                                                  validator: (value) => _validateFormField(value, 'From'),
+
+                                                ),
+                                              ),
+                                              SizedBox(
+                                                height: 40,
+                                                width: 120,
+                                                child: TextFormField(
+                                                  style: TextStyle(fontSize: 11),
+                                                  readOnly: true,
+                                                  onTap: () async {
+                                                    DateTime? pickDate = await showDatePicker(
+                                                      context: context,
+                                                      initialDate: DateTime.now(),
+                                                      firstDate: DateTime.now(),
+                                                      lastDate: DateTime(2300),
+                                                      builder: (BuildContext context, Widget? child) {
+                                                        return Theme(
+                                                          data: ThemeData.light()
+                                                              .copyWith(
+                                                            colorScheme:
+                                                            ColorScheme.light(
+                                                              primary:
+                                                              Color(0xFF8155BA),
+                                                            ),
+                                                          ),
+                                                          child: child!,
+                                                        );
+                                                      },
+                                                    );
+                                                    if (pickDate == null) return;
+                                                    {
+                                                      setState(() {
+                                                        editTo.text = DateFormat('dd-MM-yyyy').format(pickDate);
+                                                      });
+                                                    }
+                                                  },
+                                                  controller:
+                                                  editTo, // Set the initial value of the field to the selected date
+                                                  decoration: InputDecoration(
+                                                    suffixIcon: Icon(Icons.date_range,color: Colors.teal,size: 14,),
+                                                    filled: true,
+                                                    fillColor: Colors.white,
+                                                    labelText: "To",
+                                                    labelStyle: Theme.of(context).textTheme.labelMedium,
+                                                    border: OutlineInputBorder(
+                                                      //  borderRadius: BorderRadius.circular(8),
+                                                    ),
+                                                  ),
+                                                  validator: (value) => _validateFormField(value, 'To'),
+                                                ),
+                                              ),
+                                            ],
+                                          ), /// DATE
+                                          SizedBox(height: 15),
+                                          SizedBox(
+                                            height: 70,
+                                            width: 250,
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                TextFormField(
+                                                  style: Theme.of(context).textTheme.bodyMedium,
+                                                  controller: editIncomeType,
+                                                  decoration: InputDecoration(
+                                                    filled: true,
+                                                    fillColor: Colors.white,
+                                                    hintText: 'Income Type',
+                                                    labelStyle: Theme.of(context).textTheme.bodySmall,
+                                                    contentPadding: EdgeInsets.symmetric(vertical: 10.0, horizontal: 10.0),
+                                                  ),
+                                                  inputFormatters: [
+                                                    FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z]')), // Allow only alphabets
+                                                  ],
+                                                  validator: (value) => _validateFormField(value, 'Income Type'),
+                                                  onChanged: (value) {
+                                                    setState(() {
+                                                      _monthlyincomeTypeError = null; // Clear error message when text changes
+                                                    });
+                                                  },
+                                                ),
+                                                if (_monthlyincomeTypeError != null)
+                                                  Padding(
+                                                    padding: const EdgeInsets.only(left: 8.0),
+                                                    child: Text(
+                                                      _monthlyincomeTypeError!,
+                                                      style: TextStyle(color: Colors.red),
+                                                    ),
+                                                  ),
+                                                // Add other form fields and error messages here
+                                              ],
+                                            ),
+                                          ),
+                                          ///Income Type
+                                          SizedBox(height: 15),
+                                          SizedBox(
+                                            height: 70,
+                                            width: 250,
+                                            child: Column(
+                                              children: [
+                                                TextFormField(
+                                                  style: Theme.of(context).textTheme.bodyMedium,
+                                                  controller: editIncomeAmt,
+                                                  decoration: InputDecoration(
+                                                    filled: true,
+                                                    fillColor: Colors.white,
+                                                    hintText: 'Income Amount',
+                                                    labelStyle: Theme.of(context).textTheme.bodySmall,
+                                                    contentPadding: EdgeInsets.symmetric(vertical: 10.0, horizontal: 10.0),
+                                                  ),
+                                                  validator: (value) => _validateFormField(value, 'Income Amount'),
+                                                  onChanged: (value) {
+                                                    setState(() {
+                                                      _monthlyincomeAmountError = null; // Clear error message when text changes
+                                                    });
+                                                  },
+                                                  keyboardType: TextInputType.number,
+                                                  inputFormatters: <TextInputFormatter>[
+                                                    FilteringTextInputFormatter.digitsOnly,
+                                                    LengthLimitingTextInputFormatter(7)
+                                                  ],
+                                                ),
+
+                                                if (_monthlyincomeAmountError != null)
+                                                  Padding(
+                                                    padding: const EdgeInsets.only(left: 8.0),
+                                                    child: Text(
+                                                      _monthlyincomeAmountError!,
+                                                      style: TextStyle(color: Colors.red),
+                                                    ),
+                                                  )
+                                              ],
+                                            ),
+
+
+
+                                          ),  ///Income Amount
+
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  actions: [
+                                    ElevatedButton(
+                                      onPressed: () async {
+                                        // Validate the form
+                                        if (_formKey.currentState!.validate()) {
+                                          // All fields are valid, proceed with your logic
+                                          if (editIncomeType.text.isEmpty) {
+                                            // Set error message for monthlyincomeType
+                                            setState(() {
+                                              _monthlyincomeTypeError = 'Income Type is required.';
+                                            });
+
+                                          }
+                                          else  if (editIncomeAmt.text.isEmpty) {
+                                            // Set error message for monthlyincomeType
+                                            setState(() {
+                                              _monthlyincomeAmountError = 'Income Amount is required.';
+                                            });
+
+                                          }
+                                          else {
+                                            final DateTime fromparsedDate = DateFormat('dd-MM-yyyy').parse(editFrom.text);
+                                            final fromDate = DateFormat('yyyy-MM-dd').format(fromparsedDate);
+                                            final DateTime toparsedDate = DateFormat('dd-MM-yyyy').parse(editTo.text);
+                                            final toDate = DateFormat('yyyy-MM-dd').format(toparsedDate);
+                                            var response = await http.put(
+                                              Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/MonthlyDashBoard.php'), // Replace with your PHP update endpoint
+
+                                              headers: <String, String>{
+                                                'Content-Type': 'application/json; charset=UTF-8',
+                                              },
+
+                                              body: jsonEncode(<String, dynamic>{
+                                                'incomeId': trip['incomeId'],
+                                                'incomeType': editIncomeType.text,
+                                                'fromDate': fromDate,
+                                                'toDate': toDate,
+                                                'incomeAmt': editIncomeAmt.text,
+                                              }),
+                                            );
+
+                                            if (response.statusCode == 200) {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) => MonthlyDashboard(uid: '',),
+                                                ),
+                                              );
+                                            } else {
+                                              // Handle error
+                                              print('Failed to update data.');
+                                            }
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) => MonthlyDashboard(uid: '',),
+                                              ),
+                                            );
+                                          }
+                                        } else {
+                                          // Fields are not valid, trigger a rebuild to display error messages
+                                          setState(() {});
+                                        }
+                                      },
+                                      style: ButtonStyle(
+                                        backgroundColor: MaterialStateProperty.all<Color>(Colors.teal),
+                                      ),
+                                      child: const Text("Update", style: TextStyle(color: Colors.white)),
+                                    ),
+                                  ],
+                                  backgroundColor: Colors.teal.shade50,
+                                );
+                              },
+                            );
+                          },
+                        );
 
                       }
                       else if (value == "delete") {
@@ -607,70 +1208,22 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
                                 TextButton(
                                   child: Text("Delete"),
                                   onPressed: () async {
-                                    // Delete the data from SharedPreferences
-                                    SharedPreferences prefs = await SharedPreferences.getInstance();
-                                    prefs.remove('${trip['incomeId']}:totalincome');
-                                    prefs.remove('${trip['incomeId']}:incomeType');
-                                    prefs.remove('${trip['incomeId']}:selectedFromDate');
-                                    prefs.remove('${trip['incomeId']}:selectedToDate');
-                                    prefs.remove('${trip['incomeId']}:selectedMonth');
+                                    // Send DELETE request to delete data
+                                    var response = await http.delete(
+                                      Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/MonthlyDashBoard.php'),
+                                      headers: <String, String>{
+                                        'Content-Type': 'application/json; charset=UTF-8',
+                                      },
+                                      body: jsonEncode(<String, String>{
+                                        'incomeId': trip['incomeId'],
+                                      }),
+                                    );
 
-                                    // Remove incomeId from the list of displayedIncomeIds
-                                    displayedIncomeIds.remove(trip['incomeId']);
-
-                                    // Update UI
-                                    setState(() {});
-
-                                    Navigator.push(context, MaterialPageRoute(builder: (context)=> const MonthlyDashboard(user_id: "9"))); // Close the dialog
-                                  },
-                                ),
-                              ],
-                            );
-                          },
-                        );
-                      }
-                      else if (value == "monthClose") {
-                        showDialog(
-                          context: context,
-                          builder: (BuildContext context) {
-                            return AlertDialog(
-                              title: const Text("Confirm Close"),
-                              content: const Text("Are you sure you want to close this Budget?"),
-                              actions: <Widget>[
-                                TextButton(
-                                  child: Text("Cancel"),
-                                  onPressed: () {
-                                    Navigator.of(context).pop();
-                                  },
-                                ),
-                                TextButton(
-                                  child: Text("Close"),
-                                  onPressed: () async {
-                                    try {
-                                      // Retrieve fromDate and toDate from trip data
-                                      String fromDate = trip['selectedFromDate'];
-                                      String toDate = trip['selectedToDate'];
-
-                                      // Store totalRemaining value as string
-                                      String totalRemaining = trip['totalRemaining'].trim();
-
-                                      SharedPreferences prefs = await SharedPreferences.getInstance();
-                                      String monthId = DateTime.now().millisecondsSinceEpoch.toString();
-
-                                      // Save fromDate, toDate, and totalRemaining to SharedPreferences
-                                      prefs.setString('$monthId:fromDate', fromDate);
-                                      prefs.setString('$monthId:toDate', toDate);
-                                      prefs.setString('$monthId:monthendRemaining', totalRemaining);
-                                      prefs.setBool('${trip['incomeId']}:monthClose', true);
-
-                                      // Print the remaining value
-                                      print('Remaining Value for monthId $monthId: $totalRemaining');
-
-                                      // Close the dialog
-                                      Navigator.push(context, MaterialPageRoute(builder: (context)=> const MonthlyDashboard(user_id: "9")));
-                                    } catch (e) {
-                                      print('Error closing month: $e');
-                                      // Handle the error, e.g., show a message to the user
+                                    if (response.statusCode == 200) {
+                                      Navigator.push(context, MaterialPageRoute(builder: (context)=> const MonthlyDashboard(uid: '',)));
+                                    } else {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('Failed to delete data')));
                                     }
                                   },
                                 ),
@@ -679,10 +1232,6 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
                           },
                         );
                       }
-
-
-
-
                     },
                   ),
                 ],
@@ -691,84 +1240,98 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(height: 5,),
-                      RichText(
-                        text: TextSpan(
-                          children: [
-                            TextSpan(
-                              text: 'Income Amount: ',
-                              style: Theme.of(context).textTheme.labelMedium,
-                            ),
-                            TextSpan(
-                              text: trip['totalIncome'],
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                          ],
-                        ),
-                      ),
-                      /*RichText(
-                        text: TextSpan(
-                          children: [
-                            TextSpan(
-                              text: 'Income Amount: ',
-                              style: Theme.of(context).textTheme.labelMedium,
-                            ),
-                            TextSpan(
-                              text: trip['totalRemaining'],
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                          ],
-                        ),
-                      ),*/
-                    ],
+
+                  SizedBox(height: 5,),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 20),
+                    child: Text('Income Amount: ${trip['totalIncomeAmt']}', style: Theme.of(context).textTheme.labelMedium),
+                  ),
+                  Text('Spent: ${trip['total_spent']}'),
+                  Text('Remaining: ${trip['remaining']}'),
+                  const SizedBox(width: 30,),
+                  // if((currentDate.year >= toDate.year &&
+                  //     currentDate.month >= toDate.month &&
+                  //     currentDate.day >= toDate.day))
+                  TextButton(
+                    child: Text("Close"),
+                    onPressed: () async {
+                      showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return AlertDialog(
+                            title: const Text("Confirm Close"),
+                            content: const Text("Are you sure you want to Close this Budget?"),
+                            actions: <Widget>[
+                              TextButton(
+                                child: Text("Cancel"),
+                                onPressed: () {
+                                  Navigator.of(context).pop();
+                                },
+                              ),
+                              TextButton(
+                                child: const Text("Close"),
+                                onPressed: () async {
+                                  try {
+                                    var response = await http.put(
+                                      Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/monthEndBalance.php'),
+                                      headers: <String, String>{
+                                        'Content-Type': 'application/json; charset=UTF-8',
+                                      },
+                                      body: jsonEncode(<String, dynamic>{
+                                        'incomeId': trip['incomeId'],
+                                        'fromDate': trip['fromDate'], // Include fromDate
+                                        'toDate': trip['toDate'],     // Include toDate
+                                        'monthRemaining': trip['remaining'],
+                                      }),
+                                    );
+                                    if (response.statusCode == 200) {
+                                      var statusResponse = await http.put(
+                                        Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/UpdateStatus.php'), // Replace with your PHP endpoint to update status
+                                        headers: <String, String>{
+                                          'Content-Type': 'application/json; charset=UTF-8',
+                                        },
+                                        body: jsonEncode({
+                                          'incomeId': trip['incomeId'],
+                                          'fromDate': trip['fromDate'], // Include fromDate
+                                          'toDate': trip['toDate'],
+                                          'status': 'closed',
+                                        }),
+                                      );
+                                      if (statusResponse.statusCode == 200) {
+                                        print("Response Body: ${response.body}");
+                                        print("Response Status: ${response.statusCode}");
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => MonthlyDashboard(uid: '',),
+                                          ),
+                                        );
+                                      } else {
+                                        print('Failed to update status.');
+                                      }
+                                    } else {
+                                      print('Failed to update data.');
+                                    }
+                                    Navigator.push(context, MaterialPageRoute(builder: (context) => const MonthlyDashboard(uid: '',)));
+                                  } catch (e) {
+                                    print('Error closing month: $e');
+                                  }
+                                },
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                    },
                   ),
                 ],
               ),
-              SizedBox(height: 5,)
+              SizedBox(height: 5,),
+
             ],
           ),
         ),
       ),
     );
-  }
-
-  void _saveDataToSharedPreferences() async {
-
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-
-    String incomeId = DateTime.now().millisecondsSinceEpoch.toString();
-
-    String totalincome = monthlyincome.text;
-    String totalincomeType = monthlyincomeType.text;
-    String fromDate = _textEditingControllerFrom.text;
-    String toDate = _textEditingControllerTo.text;
-    String selectedMonth = DateFormat.M().format(_fromDate);
-
-    int totalMonthlyIncome = prefs.getInt('totalIncome_$selectedMonth') ?? 0;
-    totalMonthlyIncome += int.parse(totalincome);
-
-    prefs.setInt('totalIncome_$selectedMonth', totalMonthlyIncome);
-
-    prefs.setString('$incomeId:totalincome', totalincome);
-    prefs.setString('$incomeId:incomeType', totalincomeType);
-    prefs.setString('$incomeId:selectedFromDate', fromDate);
-    prefs.setString('$incomeId:selectedToDate', toDate);
-    prefs.setString('$incomeId:selectedMonth', selectedMonth);
-
-    List<String> totalIncomes = prefs.getStringList('totalIncomes') ?? [];
-    totalIncomes.add(incomeId);
-    prefs.setStringList('totalIncomes', totalIncomes);
-
-    print('Income ID: $incomeId');
-    print('Total income: $totalincome');
-    print('Income Type: $totalincomeType');
-    print('From Date: $fromDate');
-    print('To Date: $toDate');
-
-    print('Total Monthly Income for $selectedMonth: $totalMonthlyIncome');
   }
 }

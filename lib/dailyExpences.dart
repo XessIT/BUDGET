@@ -8,6 +8,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
+
 import 'package:mybudget/expense_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simple_icons/simple_icons.dart';
@@ -68,6 +69,7 @@ class _ExpensePageState extends State<ExpensePage> {
   TextEditingController _amountController = TextEditingController();
   String? _selectedCategory;
   String? _selectedId;
+
   String _selectedExpenseIndex = '-1'; // Initialize selected index here
 
   final _formKey = GlobalKey<FormState>();
@@ -92,14 +94,16 @@ class _ExpensePageState extends State<ExpensePage> {
   List<dynamic> _savedDailyExpenses = [];
   bool _showBudgetAlert = false;
   String wallet = '';
+  double remainingAmount = 0.0;
+  double totalAmount = 0.0;
 
   String? errormsg = '';
-  String url = ('http://localhost/BUDGET/lib/BUDGETAPI/dailyexpense.php');
+  String url = ('http://localhost/mybudget/lib/BUDGETAPI/dailyexpense.php');
   int? _radioValue;
 
   Future<void> readRecords(String incomeId) async {
     var url =
-        'http://localhost/BUDGET/lib/BUDGETAPI/dailyexpense.php'; // Replace with your actual URL
+        'http://localhost/mybudget/lib/BUDGETAPI/dailyexpense.php'; // Replace with your actual URL
     var modifiedUrl =
         Uri.parse(url).replace(queryParameters: {'incomeId': incomeId});
 
@@ -185,7 +189,7 @@ class _ExpensePageState extends State<ExpensePage> {
         if (response.statusCode == 200) {
           nav.pop();
           readRecords(widget.incomeId);
-          returnAmountToWallet(amountNeeded);
+          //returnAmountToWallet(amountNeeded);
         } else {
           print('Failed to delete record: ${response.body}');
         }
@@ -228,22 +232,12 @@ class _ExpensePageState extends State<ExpensePage> {
       // Parse the JSON response as a map directly
       var responseBody = jsonDecode(response.body);
 
-      if (responseBody is List && responseBody.isNotEmpty) {
-        // Assuming the response is a list of wallet data
-        var firstRecord = responseBody.first;
-        if (firstRecord.containsKey('wallet')) {
-          String walletAmount = firstRecord['wallet'];
-          setState(() {
-            wallet = walletAmount;
-          });
-
-          // Show the alert with wallet amount
-          showWalletAmountAlert(context, walletAmount);
-        } else {
-          print('Wallet data not found in the response');
-        }
+      if (responseBody.containsKey('total_wallet')) {
+        String totalWallet = responseBody['total_wallet'];
+        print('Total Wallet Amount: $totalWallet');
+        showWalletAmountAlert(context, totalWallet);
       } else {
-        print('Invalid or empty response format');
+        print('Total wallet amount not found in the response');
       }
     } else {
       print('Failed to fetch records: ${response.body}');
@@ -253,7 +247,7 @@ class _ExpensePageState extends State<ExpensePage> {
 // Import material.dart for Flutter's alert dialog
 
   Future<void> showWalletAmountAlert(
-      BuildContext context, String walletAmount) async {
+      BuildContext context, String totalWallet) async {
     return showDialog<void>(
       context: context,
       barrierDismissible: false, // User must tap button to close the dialog
@@ -264,7 +258,7 @@ class _ExpensePageState extends State<ExpensePage> {
             child: ListBody(
               children: <Widget>[
                 Text(
-                    'Your current wallet amount is: $walletAmount'), // Display wallet amount in the alert dialog
+                    'Your current wallet amount is: $totalWallet'), // Display wallet amount in the alert dialog
               ],
             ),
           ),
@@ -281,106 +275,87 @@ class _ExpensePageState extends State<ExpensePage> {
     );
   }
 
-  double _calculateTotalExpenses() {
-    double totalExpenses = 0;
-    for (var expense in _savedDailyExpenses) {
-      try {
-        if (expense['amount'] != null && expense['amount'].isNotEmpty) {
-          totalExpenses += double.parse(expense['amount']);
-        }
-      } catch (e) {
-        print("Error parsing amount: ${expense['amount']}");
-        // Handle the error, such as skipping this expense or logging the issue
-      }
-    }
-    setState(() {
-      totalAmount = totalExpenses;
-      print("total spent: $totalAmount");
-    });
-    return totalExpenses;
-  }
-
   /// wallet update
 
-  void checkExpensesAndSave() async {
-    String category = _categoryController.text;
-    String amount = _amountController.text;
-    double budgetAmount = double.parse(widget.amount);
-    double totalExpenses = _calculateTotalExpenses();
-    double newExpenseAmount = double.parse(_amountController.text);
-    double remainingBudget = budgetAmount - (totalExpenses + newExpenseAmount);
-
-    if (remainingBudget >= 0) {
-      insertExpense();
-
-      /// ithu akoum
-      // Sufficient balance, navigate to monthly expenses
-    } else {
-      double amountNeeded = (totalExpenses + newExpenseAmount) - budgetAmount;
-      String category = _categoryController.text;
-      String amount = _amountController.text;
-
-      print('Category dilog up dialog: $category');
-      print('Amount dilog up dialog: $amount');
-
-      AwesomeDialog(
-        context: context,
-        dialogType: DialogType.infoReverse,
-        headerAnimationLoop: true,
-        animType: AnimType.bottomSlide,
-        title: 'Inufficient Balance',
-        reverseBtnOrder: true,
-        btnOkOnPress: () async {
-          print('Category inside dialog: $category');
-          print('Amount inside dialog: $amount');
-
-          // Close the dialog
-          // Navigate to monthly expenses screen
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => MonthlyDashboard(uid: '',)),
-          );
-
-          // await insertExpense(category, amount); // Insert expense with category and amount
-        },
-        btnCancelOnPress: () {
-          AwesomeDialog(
-            context: context,
-            dialogType: DialogType.infoReverse,
-            title: 'Do you Want Take Your Amount From Wallet',
-            reverseBtnOrder: true,
-            btnOkText: 'Yes',
-            btnCancelText: 'No',
-            btnOkOnPress: () async {
-              /*  String category = _categoryController.text;
-        String amount = _amountController.text;*/
-
-              print('Category inside dialog: $category');
-              print('Amount inside dialog: $amount');
-              insertExpense();
-
-              await updateWalletAmount(widget.uid, amountNeeded);
-            },
-            btnCancelOnPress: () {
-              Navigator.of(context).pop();
-            },
-          ).show();
-        },
-        desc:
-            'Do you want to spend this amount from your monthly expenses? Remaining amount needed: $amountNeeded',
-      ).show();
-    }
-  }
-
-  void returnAmountToWallet(double amountReturned) {
-    updateWalletAmount(
-        widget.uid, -amountReturned); // Negative amount to return
-  }
+  // void checkExpensesAndSave() async {
+  //   String category = _categoryController.text;
+  //   String amount = _amountController.text;
+  //   double budgetAmount = double.parse(widget.amount);
+  //   double totalExpenses = _calculateTotalExpenses();
+  //   double newExpenseAmount = double.parse(_amountController.text);
+  //   double remainingBudget = budgetAmount - (totalExpenses + newExpenseAmount);
+  //
+  //   if (remainingBudget >= 0) {
+  //     insertExpense();
+  //
+  //     /// ithu akoum
+  //     // Sufficient balance, navigate to monthly expenses
+  //   } else {
+  //     double amountNeeded = (totalExpenses + newExpenseAmount) - budgetAmount;
+  //     String category = _categoryController.text;
+  //     String amount = _amountController.text;
+  //
+  //     print('Category dilog up dialog: $category');
+  //     print('Amount dilog up dialog: $amount');
+  //
+  //     AwesomeDialog(
+  //       context: context,
+  //       dialogType: DialogType.infoReverse,
+  //       headerAnimationLoop: true,
+  //       animType: AnimType.bottomSlide,
+  //       title: 'Inufficient Balance',
+  //       reverseBtnOrder: true,
+  //       btnOkOnPress: () async {
+  //         print('Category inside dialog: $category');
+  //         print('Amount inside dialog: $amount');
+  //
+  //         // Close the dialog
+  //         // Navigate to monthly expenses screen
+  //         Navigator.push(
+  //           context,
+  //           MaterialPageRoute(builder: (context) => MonthlyDashboard()),
+  //         );
+  //
+  //         // await insertExpense(category, amount); // Insert expense with category and amount
+  //       },
+  //       btnCancelOnPress: () {
+  //         AwesomeDialog(
+  //           context: context,
+  //           dialogType: DialogType.infoReverse,
+  //           title: 'Do you Want Take Your Amount From Wallet',
+  //           reverseBtnOrder: true,
+  //           btnOkText: 'Yes',
+  //           btnCancelText: 'No',
+  //           btnOkOnPress: () async {
+  //             /*  String category = _categoryController.text;
+  //       String amount = _amountController.text;*/
+  //
+  //             print('Category inside dialog: $category');
+  //             print('Amount inside dialog: $amount');
+  //             insertExpense();
+  //
+  //             await updateWalletAmount(widget.uid, amountNeeded);
+  //           },
+  //           btnCancelOnPress: () {
+  //             Navigator.of(context).pop();
+  //           },
+  //         ).show();
+  //       },
+  //       desc:
+  //           'Do you want to spend this amount from your monthly expenses? Remaining amount needed: $amountNeeded',
+  //     ).show();
+  //   }
+  // }
+  //
+  // void returnAmountToWallet(double amountReturned) {
+  //   updateWalletAmount(
+  //       widget.uid, -amountReturned); // Negative amount to return
+  // }
 
   Future<void> updateWalletAmount(String uid, double amountNeeded) async {
     try {
       var url =
-          'http://localhost/BUDGET/lib/BUDGETAPI/dailyexpensescalculation.php';
+          'http://localhost/mybudget/lib/BUDGETAPI/dailyexpensescalculation.php';
       var response = await http.put(
         Uri.parse(url),
         body: jsonEncode({
@@ -400,15 +375,95 @@ class _ExpensePageState extends State<ExpensePage> {
     }
   }
 
+  ///update wallet
+
+  Future<void> updateWallet(String uid, String incomeId, double remainingAmount,
+      String todate) async {
+    try {
+      var url = 'http://localhost/BUDGET/lib/BUDGETAPI/walletupdate.php';
+      var response = await http.post(
+        Uri.parse(url),
+        body: jsonEncode({
+          'uid': uid,
+          'incomeId': incomeId,
+          'remainingAmount': remainingAmount.toStringAsFixed(
+              2), // Format remainingAmount to fixed decimal places
+          'todate': todate,
+        }),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (response.statusCode == 200) {
+        print("uid: $uid");
+        print("incomeId: $incomeId");
+        print("remainingAmount: $remainingAmount");
+        print("todate: $todate");
+        print("URL: $url");
+        print('Daily Wallet amount updated successfully');
+      } else {
+        print('Failed to update wallet amount: ${response.body}');
+      }
+    } catch (e) {
+      print('Error updating wallet amount: $e');
+    }
+  }
+
+  Future<void> loadDataAndCalculateExpenses() async {
+    await readRecords(widget.incomeId); // Load data
+
+    // Calculate total expenses
+    _calculateTotalExpenses();
+
+    // Convert the 'amount' string to double
+    double budgetAmount = double.tryParse(widget.amount) ?? 0.0;
+    print('Budget Amount: $budgetAmount');
+
+    // Update remaining amount based on totalAmount and budget
+    remainingAmount = budgetAmount - totalAmount;
+    print('Remaining Amount: $remainingAmount');
+
+    // Update the wallet with the correct remainingAmount if totalAmount is calculated
+    if (totalAmount != 0) {
+      updateWallet(widget.uid, widget.incomeId, remainingAmount, widget.todate);
+    }
+  }
+
+  double _calculateTotalExpenses() {
+    double budget = double.parse(widget.amount);
+    double totalExpenses = 0;
+    for (var expense in _savedDailyExpenses) {
+      try {
+        if (expense['amount'] != null && expense['amount'].isNotEmpty) {
+          totalExpenses += double.parse(expense['amount']);
+        }
+      } catch (e) {
+        print("Error parsing amount: ${expense['amount']}");
+        // Handle the error, such as skipping this expense or logging the issue
+      }
+    }
+    setState(() {
+      totalAmount = totalExpenses;
+      remainingAmount = budget - totalAmount;
+      print("remaining : $remainingAmount");
+      print("total spent: $totalAmount");
+      if (_totalBudget != 0) {
+        _showBudgetAlert = totalAmount >= budget * 0.8;
+      } else {
+        // Handle the case where _totalBudget is zero
+        // For example, set _showBudgetAlert to false or display a message
+      }
+    });
+    return totalExpenses;
+  }
+
   @override
   void initState() {
     super.initState();
+    readRecords(widget.incomeId);
     _dateController.text = DateFormat('dd-MM-yyyy').format(_selectedDate);
     //_fetchExpenseData();
-    readRecords(widget.incomeId);
-    double Budget = double.parse(widget.amount);
-    _calculateTotalExpenses();
-    //_loadDataForMonthly();
+
+    // Load data and calculate total expenses
+    loadDataAndCalculateExpenses();
   }
 
   ///capital letter starts code
@@ -434,17 +489,7 @@ class _ExpensePageState extends State<ExpensePage> {
   @override
   Widget build(BuildContext context) {
     _calculateTotalExpenses();
-
-    double budget = double.parse(widget.amount);
     double totalExpenses = totalAmount;
-    double remainingAmount = budget - totalAmount;
-    if (_totalBudget != 0) {
-      _showBudgetAlert = totalAmount >= budget * 0.8;
-    } else {
-      // Handle the case where _totalBudget is zero
-      // For example, set _showBudgetAlert to false or display a message
-    }
-
     return Scaffold(
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(70),
@@ -476,7 +521,7 @@ class _ExpensePageState extends State<ExpensePage> {
               onPressed: () {
                 getwallet(widget.uid, context); // Pass your income ID here
               },
-              icon: Icon(
+              icon: const Icon(
                 Icons.wallet_rounded,
                 color: Colors.white,
               ),
@@ -494,7 +539,7 @@ class _ExpensePageState extends State<ExpensePage> {
           ),
           elevation: 0.00,
           backgroundColor: Color(0xFF8155BA),
-          flexibleSpace: FlexibleSpaceBar(
+          flexibleSpace: const FlexibleSpaceBar(
             centerTitle: true,
             titlePadding: EdgeInsets.only(left: 20.0, bottom: 16.0),
             title: Row(
@@ -590,72 +635,76 @@ class _ExpensePageState extends State<ExpensePage> {
             children: [
               Column(
                 children: [
-                  SizedBox(
+                  const SizedBox(
                     height: 10,
                   ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      TextButton(
-                          onPressed: () {
-                            AwesomeDialog(
-                              context: context,
-                              dialogType: DialogType.question,
-                              animType: AnimType.rightSlide,
-                              title: 'Get Amount',
-                              desc: 'Choose where you want to get amount from:',
-                              body: Column(
-                                children: [
-                                  RadioListTile(
-                                    title: Text('Monthly expenses'),
-                                    value: 0,
-                                    groupValue: _radioValue,
-                                    onChanged: (int? value) {
-                                      setState(() {
-                                        _radioValue = value!;
-                                        Navigator.of(context)
-                                            .pop(); // Close dialog
-                                        // Navigate to a new screen based on the selected option
-                                        // Replace '/monthly_expenses' with your desired route
-                                        Navigator.of(context)
-                                            .push(MaterialPageRoute(
-                                          builder: (context) =>
-                                              MonthlyDashboard(uid: '',),
-                                        )); // Close the dialog
-                                      });
-                                    },
-                                  ),
-                                  RadioListTile(
-                                    title: Text('Wallet'),
-                                    value: 1,
-                                    groupValue: _radioValue,
-                                    onChanged: (int? value) {
-                                      setState(() {
-                                        _radioValue = value!;
-                                        AwesomeDialog(
-                                          context: context,
-                                          dialogType: DialogType.infoReverse,
-                                          title: 'Reverse Amount',
-                                          desc:
-                                              'Do you want to reverse this amount from next month?',
-                                          btnOkText: 'Yes',
-                                          btnCancelText: 'No',
-                                          btnCancelOnPress: () {},
-                                          btnOkOnPress: () {
-                                            // Perform actions when OK is pressed
-                                          },
-                                        ).show();
-                                      });
-                                    },
-                                  ),
-                                ],
-                              ),
-                              btnCancelOnPress: () {},
-                              btnCancelText: 'Cancel',
-                            ).show();
-                          },
-                          child: Text("Get Amount ",
-                              style: Theme.of(context).textTheme.bodySmall)),
+                      if (remainingAmount <= 0)
+                        TextButton(
+                            onPressed: () {
+                              AwesomeDialog(
+                                context: context,
+                                dialogType: DialogType.question,
+                                animType: AnimType.rightSlide,
+                                title: 'Get Amount',
+                                desc:
+                                    'Choose where you want to get amount from:',
+                                body: Column(
+                                  children: [
+                                    RadioListTile(
+                                      title: Text('Monthly expenses'),
+                                      value: 0,
+                                      groupValue: _radioValue,
+                                      onChanged: (int? value) {
+                                        setState(() {
+                                          _radioValue = value!;
+                                          Navigator.of(context)
+                                              .pop(); // Close dialog
+                                          // Navigate to a new screen based on the selected option
+                                          // Replace '/monthly_expenses' with your desired route
+                                          Navigator.of(context)
+                                              .push(MaterialPageRoute(
+                                            builder: (context) =>
+                                                MonthlyDashboard(
+                                              uid: '',
+                                            ),
+                                          )); // Close the dialog
+                                        });
+                                      },
+                                    ),
+                                    RadioListTile(
+                                      title: Text('Wallet'),
+                                      value: 1,
+                                      groupValue: _radioValue,
+                                      onChanged: (int? value) {
+                                        setState(() {
+                                          _radioValue = value!;
+                                          AwesomeDialog(
+                                            context: context,
+                                            dialogType: DialogType.infoReverse,
+                                            title: 'Reverse Amount',
+                                            desc:
+                                                'Do you want to reverse this amount from next month?',
+                                            btnOkText: 'Yes',
+                                            btnCancelText: 'No',
+                                            btnCancelOnPress: () {},
+                                            btnOkOnPress: () {
+                                              // Perform actions when OK is pressed
+                                            },
+                                          ).show();
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                                btnCancelOnPress: () {},
+                                btnCancelText: 'Cancel',
+                              ).show();
+                            },
+                            child: Text("Get Amount ",
+                                style: Theme.of(context).textTheme.bodySmall)),
                     ],
                   ),
 
@@ -692,13 +741,13 @@ class _ExpensePageState extends State<ExpensePage> {
                           padding: const EdgeInsets.only(left: 12),
                           child: Row(
                             children: [
-                              Padding(
-                                padding: const EdgeInsets.all(8.0),
+                              const Padding(
+                                padding: EdgeInsets.all(8.0),
                                 child: CircleAvatar(
+                                  backgroundColor: Colors.blue,
                                   child: Icon(SimpleIcons.bitcomet,
-                                      color: Colors.white),
-                                  backgroundColor: Colors
-                                      .blue, // Set the background color of the circle avatar
+                                      color: Colors
+                                          .white), // Set the background color of the circle avatar
                                 ),
                               ),
                               SizedBox(width: 8),
@@ -725,10 +774,10 @@ class _ExpensePageState extends State<ExpensePage> {
                                       ),
                                     ],
                                   ),
-                                  SizedBox(
+                                  const SizedBox(
                                       height:
                                           2), // Add space between the row and the text widgets
-                                  Container(
+                                  const SizedBox(
                                     width: 200, // Set the desired width
                                     child: LinearProgressIndicator(
                                       value: 1.0,
@@ -755,13 +804,13 @@ class _ExpensePageState extends State<ExpensePage> {
                               Padding(
                                 padding: const EdgeInsets.all(8.0),
                                 child: CircleAvatar(
-                                  child: Icon(SimpleIcons.affine,
-                                      color: Colors.white),
                                   backgroundColor: totalExpenses >
                                           double.parse(widget.amount)
                                       ? Colors
                                           .red // Orange color when spent exceeds received amount
                                       : Colors.red,
+                                  child: const Icon(SimpleIcons.affine,
+                                      color: Colors.white),
                                 ),
                               ),
                               SizedBox(width: 8),
@@ -785,7 +834,7 @@ class _ExpensePageState extends State<ExpensePage> {
                                       ),
                                     ],
                                   ),
-                                  SizedBox(
+                                  const SizedBox(
                                       height:
                                           2), // Add space between the row and the text widgets
                                   Container(
@@ -1078,7 +1127,7 @@ class _ExpensePageState extends State<ExpensePage> {
                               return null;
                             },
                           ),
-                          SizedBox(height: 20),
+                          const SizedBox(height: 20),
                           Row(
                             children: [
                               SizedBox(
@@ -1107,7 +1156,7 @@ class _ExpensePageState extends State<ExpensePage> {
                                           .bodySmall),
                                 ),
                               ),
-                              SizedBox(
+                              const SizedBox(
                                 width: 20,
                               ),
                               Container(
@@ -1135,7 +1184,7 @@ class _ExpensePageState extends State<ExpensePage> {
                                             ;
                                         });
                                       },
-                                      child: Icon(
+                                      child: const Icon(
                                         Icons.add,
                                         color: Colors.white,
                                       )),
@@ -1149,7 +1198,7 @@ class _ExpensePageState extends State<ExpensePage> {
                                     context: context,
                                     builder: (BuildContext context) {
                                       return AlertDialog(
-                                        title: Text(
+                                        title: const Text(
                                           "Notes",
                                           style: TextStyle(
                                               fontSize: 20,
@@ -1165,25 +1214,26 @@ class _ExpensePageState extends State<ExpensePage> {
                                             children: [
                                               Text(
                                                 "Category: ${_categoryController.text}",
-                                                style: TextStyle(
+                                                style: const TextStyle(
                                                     fontSize: 16,
                                                     color: Colors
                                                         .black), // Change text size and color
                                               ),
                                               Text(
                                                 "Amount: ${_amountController.text}",
-                                                style: TextStyle(
+                                                style: const TextStyle(
                                                     fontSize: 16,
                                                     color: Colors
                                                         .black), // Change text size and color
                                               ),
                                               TextField(
                                                 controller: addNotes,
-                                                style: TextStyle(
+                                                style: const TextStyle(
                                                     fontSize: 14,
                                                     color: Colors
                                                         .black), // Change input text size and color
-                                                decoration: InputDecoration(
+                                                decoration:
+                                                    const InputDecoration(
                                                   labelText: "Add",
                                                   labelStyle: TextStyle(
                                                       fontSize: 16,
@@ -1199,7 +1249,7 @@ class _ExpensePageState extends State<ExpensePage> {
                                             onPressed: () {
                                               Navigator.pop(context);
                                             },
-                                            child: Text(
+                                            child: const Text(
                                               "Cancel",
                                               style: TextStyle(
                                                   fontSize: 16,
@@ -1215,7 +1265,7 @@ class _ExpensePageState extends State<ExpensePage> {
                                                 ///  String amount = monthlyexpenses[i]['monthlyamount']!.text;
                                               });
                                             },
-                                            child: Text(
+                                            child: const Text(
                                               "OK",
                                               style: TextStyle(
                                                   fontSize: 16,
@@ -1224,7 +1274,7 @@ class _ExpensePageState extends State<ExpensePage> {
                                             ),
                                           ),
                                         ],
-                                        shape: RoundedRectangleBorder(
+                                        shape: const RoundedRectangleBorder(
                                           side: BorderSide(
                                               color: Color(
                                                   0xFF8155BA)), // Set border color here
@@ -1249,9 +1299,10 @@ class _ExpensePageState extends State<ExpensePage> {
                                   setState(() {
                                     String category = _categoryController.text;
                                     String amount = _amountController.text;
+                                    insertExpense();
 
                                     // Call checkExpensesAndSave() passing the context, category, and amount
-                                    checkExpensesAndSave();
+                                    // checkExpensesAndSave();
                                   });
 
                                   setState(() {
@@ -1272,7 +1323,7 @@ class _ExpensePageState extends State<ExpensePage> {
                                 elevation: 10,
                                 backgroundColor: Color(0xFF8155BA),
                               ),
-                              child: Text(
+                              child: const Text(
                                 'Save',
                                 style: TextStyle(color: Colors.white),
                               ),
@@ -1394,7 +1445,7 @@ class _ExpensePageState extends State<ExpensePage> {
                       children: [
                         if (_selectedExpenseIndex == expense['id'])
                           IconButton(
-                            icon: Icon(
+                            icon: const Icon(
                               Icons.delete,
                               color: Color(0xFF8155BA),
                             ),
@@ -1458,7 +1509,7 @@ class _ExpensePageState extends State<ExpensePage> {
                                       ),
                                       TextField(
                                         controller: _amountController,
-                                        decoration: InputDecoration(
+                                        decoration: const InputDecoration(
                                             labelText: 'Amount'),
                                         keyboardType: TextInputType.number,
                                       ),
@@ -1501,7 +1552,7 @@ class _ExpensePageState extends State<ExpensePage> {
             children: [
               Text(
                 '$formattedDate',
-                style: TextStyle(
+                style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 18.0,
                 ),
@@ -1527,8 +1578,9 @@ class _ExpensePageState extends State<ExpensePage> {
                 ),
               ],
             ),
-            margin: EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0),
-            padding: EdgeInsets.all(10.0),
+            margin:
+                const EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0),
+            padding: const EdgeInsets.all(10.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: expensesList,
@@ -1570,6 +1622,4 @@ class _ExpensePageState extends State<ExpensePage> {
 
   // Modify _saveExpense method to update SharedPreferences
   bool _isAddButtonClicked = false;
-
-  double totalAmount = 0.0;
 }

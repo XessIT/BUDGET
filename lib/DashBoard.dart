@@ -20,8 +20,8 @@ class DashBoard extends StatefulWidget {
   @override
   State<DashBoard> createState() => _DashBoardState();
 }
-class _DashBoardState extends State<DashBoard> {
 
+class _DashBoardState extends State<DashBoard> {
   final gradientList = <List<Color>>[
     [
       Color.fromRGBO(223, 250, 92, 1),
@@ -37,11 +37,9 @@ class _DashBoardState extends State<DashBoard> {
     ]
   ];
 
-
   final colorList = <Color>[
     Colors.greenAccent,
   ];
-
 
   double totalBudget = 1000;
   double totalSpent = 500;
@@ -49,7 +47,8 @@ class _DashBoardState extends State<DashBoard> {
 
   final TextEditingController monthlyincome = TextEditingController();
   final TextEditingController monthlyincomeType = TextEditingController();
-  TextEditingController _textEditingController = TextEditingController(text: DateFormat.yMMMd().format(DateTime.now()));
+  TextEditingController _textEditingController =
+      TextEditingController(text: DateFormat.yMMMd().format(DateTime.now()));
 
   void _showReportDialog(String selectedMonth) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -58,7 +57,8 @@ class _DashBoardState extends State<DashBoard> {
 
     // Filter incomes for the selected month
     List<String> filteredIncomes = totalIncomes!.where((incomeId) {
-      String selectedIncomeMonth = prefs.getString('$incomeId:selectedMonth') ?? '';
+      String selectedIncomeMonth =
+          prefs.getString('$incomeId:selectedMonth') ?? '';
       return selectedIncomeMonth == selectedMonth;
     }).toList();
 
@@ -66,7 +66,8 @@ class _DashBoardState extends State<DashBoard> {
     List<DataRow> rows = filteredIncomes.map((incomeId) {
       String incomeType = prefs.getString('$incomeId:incomeType') ?? '';
       String incomeAmount = prefs.getString('$incomeId:totalincome') ?? '';
-      String selectedDate = prefs.getString('$incomeId:selectedDate') ?? ''; // Retrieve selected date
+      String selectedDate = prefs.getString('$incomeId:selectedDate') ??
+          ''; // Retrieve selected date
       return DataRow(cells: [
         DataCell(Text(selectedDate)), // Display selected date
         DataCell(Text(incomeType)),
@@ -106,6 +107,7 @@ class _DashBoardState extends State<DashBoard> {
       },
     );
   }
+
   void _saveDataToSharedPreferences() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
 
@@ -142,7 +144,6 @@ class _DashBoardState extends State<DashBoard> {
     //_showAlert();
   }
 
-
   @override
   void initState() {
     super.initState();
@@ -151,7 +152,8 @@ class _DashBoardState extends State<DashBoard> {
   }
 
   bool _languageSelectionDialogShown = false;
-  bool _languageSelected = false; // Add a state variable to track language selection
+  bool _languageSelected =
+      false; // Add a state variable to track language selection
 
   @override
   void didChangeDependencies() {
@@ -178,7 +180,8 @@ class _DashBoardState extends State<DashBoard> {
         return StatefulBuilder(
           builder: (BuildContext context, setState) {
             return AlertDialog(
-              contentPadding: EdgeInsets.symmetric(vertical: 20.0, horizontal: 20.0),
+              contentPadding:
+                  EdgeInsets.symmetric(vertical: 20.0, horizontal: 20.0),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -205,8 +208,9 @@ class _DashBoardState extends State<DashBoard> {
                       });
                     },
                     style: ElevatedButton.styleFrom(
-                     // primary: Color(0xFF8155BA),
-                      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+                      // primary: Color(0xFF8155BA),
+                      padding:
+                          EdgeInsets.symmetric(vertical: 12, horizontal: 24),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -271,8 +275,10 @@ class _DashBoardState extends State<DashBoard> {
       setState(() {
         selectedLanguage = newLanguage;
       });
-      Get.updateLocale(Locale(newLanguage.split('_')[0], newLanguage.split('_')[1]));
-      GetStorage().write('language', newLanguage); // Persist the selected language
+      Get.updateLocale(
+          Locale(newLanguage.split('_')[0], newLanguage.split('_')[1]));
+      GetStorage()
+          .write('language', newLanguage); // Persist the selected language
     }
   }
 
@@ -291,15 +297,16 @@ class _DashBoardState extends State<DashBoard> {
   Future<void> _loadLanguageFromStorage() async {
     final storedLanguage = GetStorage().read('language');
     setState(() {
-      selectedLanguage = storedLanguage ?? 'en_US'; // Default to English if not found
+      selectedLanguage =
+          storedLanguage ?? 'en_US'; // Default to English if not found
     });
     if (storedLanguage == null) {
       Get.updateLocale(Locale('en', 'US')); // Update locale to English
     } else {
-      Get.updateLocale(Locale(selectedLanguage.split('_')[0], selectedLanguage.split('_')[1]));
+      Get.updateLocale(Locale(
+          selectedLanguage.split('_')[0], selectedLanguage.split('_')[1]));
     }
   }
-
 
   List<Map<String, dynamic>> trips = [];
 
@@ -335,14 +342,13 @@ class _DashBoardState extends State<DashBoard> {
     // Update state with fetched data
     setState(() {
       trips = fetchedTrips;
-      print('Total Remaining Value: ₹${totalRemainingValue.toStringAsFixed(2)}'); // Print the total remaining value
+      print(
+          'Total Remaining Value: ₹${totalRemainingValue.toStringAsFixed(2)}'); // Print the total remaining value
     });
   }
 
-
   @override
   Widget build(BuildContext context) {
-
     double remainingBudget = totalBudget - totalSpent;
 
     Map<String, double> dataMap = {
@@ -395,8 +401,6 @@ class _DashBoardState extends State<DashBoard> {
           // implement your select function here
         },
       ),
-
-
       body: SingleChildScrollView(
         child: SizedBox(
           height: 1000,
@@ -417,19 +421,21 @@ class _DashBoardState extends State<DashBoard> {
                       ),
                       child: Padding(
                         padding: const EdgeInsets.only(bottom: 100),
-                        child: Row(
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.all(20.0),
-                                child: Text(
-                                  'My Budget',
-                                  style: Theme.of(context).textTheme.displayLarge,
-                                ),
-                              ),
-                              SizedBox(width: 170,),
-                              /// Expanision Tile
+                        child: Row(children: [
+                          Padding(
+                            padding: const EdgeInsets.all(20.0),
+                            child: Text(
+                              'My Budget',
+                              style: Theme.of(context).textTheme.displayLarge,
+                            ),
+                          ),
+                          SizedBox(
+                            width: 170,
+                          ),
 
-                            /*  GestureDetector(
+                          /// Expanision Tile
+
+                          /*  GestureDetector(
                                 onTap: () {
                                   showDialog(
                                     context: context,
@@ -606,11 +612,12 @@ class _DashBoardState extends State<DashBoard> {
                                   }
                                 },
                               ),*/
-                            ]
-                        ),
+                        ]),
                       ),
                     ),
-                    SizedBox(height: 100,),
+                    SizedBox(
+                      height: 100,
+                    ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
@@ -619,11 +626,10 @@ class _DashBoardState extends State<DashBoard> {
                             // Navigate to another page when the card is tapped
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (context) => Balance()),
+                              MaterialPageRoute(
+                                  builder: (context) => Balance()),
                             );
                           },
-
-
                           child: Container(
                             width: 170,
                             height: 170,
@@ -632,7 +638,6 @@ class _DashBoardState extends State<DashBoard> {
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(20),
                               ),
-
                               child: Padding(
                                 padding: const EdgeInsets.only(top: 20),
                                 child: Column(
@@ -640,15 +645,18 @@ class _DashBoardState extends State<DashBoard> {
                                     Center(
                                       child: Container(
                                         width: 80, // Adjust this size as needed
-                                        height: 80, // Adjust this size as needed
+                                        height:
+                                            80, // Adjust this size as needed
                                         decoration: BoxDecoration(
                                           shape: BoxShape.circle,
                                           boxShadow: [
                                             BoxShadow(
-                                              color: Colors.white, // Shadow color
+                                              color:
+                                                  Colors.white, // Shadow color
                                               spreadRadius: 5, // Spread radius
                                               blurRadius: 7, // Blur radius
-                                              offset: Offset(0, 3), // Shadow offset
+                                              offset:
+                                                  Offset(0, 3), // Shadow offset
                                             ),
                                           ],
                                         ),
@@ -656,29 +664,40 @@ class _DashBoardState extends State<DashBoard> {
                                           child: Icon(
                                             Icons.account_box,
                                             color: Colors.yellowAccent,
-                                            size: 40, // Adjust the size of the icon as needed
+                                            size:
+                                                40, // Adjust the size of the icon as needed
                                           ),
                                         ),
                                       ),
                                     ),
-                                    SizedBox(height: 10,),
-                                    Text("Personal Budget".tr, style: TextStyle(fontSize: 14),),
+                                    SizedBox(
+                                      height: 10,
+                                    ),
+                                    Text(
+                                      "Personal Budget".tr,
+                                      style: TextStyle(fontSize: 14),
+                                    ),
                                     //  Text('Total Remaining Value: ₹${totalRemainingValue.toStringAsFixed(2)}'),
                                   ],
                                 ),
                               ),
                             ),
                           ),
-                        ),  /// personal budget
+                        ),
+
+                        /// personal budget
                         GestureDetector(
                           onTap: () {
                             // Navigate to another page when the card is tapped
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (context) => DailyDashboard(remainingAmount: '',)),
+                              MaterialPageRoute(
+                                  builder: (context) => DailyDashboard(
+                                        remainingAmount: '',
+                                      )),
                             );
                           },
-                          child:Container(
+                          child: Container(
                             width: 170,
                             height: 170,
                             child: Card(
@@ -715,14 +734,16 @@ class _DashBoardState extends State<DashBoard> {
                                       ),
                                     ),
                                     SizedBox(height: 10),
-                                    Text("Daily Expenses".tr, style: TextStyle(fontSize: 14)),
-
+                                    Text("Daily Expenses".tr,
+                                        style: TextStyle(fontSize: 14)),
                                   ],
                                 ),
                               ),
                             ),
                           ),
-                        )/// Daily Expensive
+                        )
+
+                        /// Daily Expensive
                       ],
                     ),
                   ],
@@ -740,7 +761,7 @@ class _DashBoardState extends State<DashBoard> {
                         // Navigate to another page when the card is tapped
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => const MonthlyDashboard(uid: '5',)),
+                          MaterialPageRoute(builder: (context) =>  MonthlyDashboard(uid: '5',)),
                         );
                       },
                       child: Container(
@@ -751,7 +772,6 @@ class _DashBoardState extends State<DashBoard> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
-
                           child: Padding(
                             padding: const EdgeInsets.only(top: 20),
                             child: Column(
@@ -775,28 +795,36 @@ class _DashBoardState extends State<DashBoard> {
                                       child: Icon(
                                         Icons.people,
                                         color: Colors.orange,
-                                        size: 40, // Adjust the size of the icon as needed
+                                        size:
+                                            40, // Adjust the size of the icon as needed
                                       ),
                                     ),
                                   ),
                                 ),
-                                SizedBox(height: 10,),
-                                Text("Monthly Budget".tr, style: TextStyle(fontSize: 14),)
+                                SizedBox(
+                                  height: 10,
+                                ),
+                                Text(
+                                  "Monthly Budget".tr,
+                                  style: TextStyle(fontSize: 14),
+                                )
                               ],
                             ),
                           ),
                         ),
                       ),
-                    ),  /// Family Budget
+                    ),
+
+                    /// Family Budget
                     GestureDetector(
                       onTap: () {
                         // Navigate to another page when the card is tapped
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => TripDashboard()),
+                          MaterialPageRoute(
+                              builder: (context) => TripDashboard()),
                         );
                       },
-
                       child: Container(
                         width: 170,
                         height: 170,
@@ -828,13 +856,19 @@ class _DashBoardState extends State<DashBoard> {
                                       child: Icon(
                                         Icons.travel_explore,
                                         color: Colors.green,
-                                        size: 40, // Adjust the size of the icon as needed
+                                        size:
+                                            40, // Adjust the size of the icon as needed
                                       ),
                                     ),
                                   ),
                                 ),
-                                SizedBox(height: 10,),
-                                Text("Trip Budget".tr, style: TextStyle(fontSize: 14),)
+                                SizedBox(
+                                  height: 10,
+                                ),
+                                Text(
+                                  "Trip Budget".tr,
+                                  style: TextStyle(fontSize: 14),
+                                )
                               ],
                             ),
                           ),
@@ -851,4 +885,3 @@ class _DashBoardState extends State<DashBoard> {
     );
   }
 }
-

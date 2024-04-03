@@ -28,7 +28,8 @@ class MyApp extends StatelessWidget {
               ),
             ),
             Container(
-              height: 1000.0, // This container's height exceeds the screen height.
+              height:
+                  1000.0, // This container's height exceeds the screen height.
               color: Colors.green,
               child: Center(
                 child: Text(

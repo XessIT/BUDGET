@@ -61,26 +61,22 @@ function createRecord($data){
 
 
 
-
 function readRecords($uid) {
     $conn = connectToDatabase();
-    $sql = "SELECT wallet FROM wallet WHERE uid = '$uid'";
+    $sql = "SELECT SUM(wallet) AS total_wallet FROM wallet WHERE uid = '$uid'";
     $result = $conn->query($sql);
 
-    $records = array();
-
     if ($result->num_rows > 0) {
-        // Output data of each row
-        while ($row = $result->fetch_assoc()) {
-            $records[] = $row;
-        }
-        echo json_encode($records);
+        $row = $result->fetch_assoc();
+        $totalWallet = $row['total_wallet'];
+        echo json_encode(array("total_wallet" => $totalWallet));
     } else {
         echo json_encode(array("message" => "0 results"));
     }
 
     $conn->close();
 }
+
 
 
 function updateWallet($uid, $amountNeeded) {

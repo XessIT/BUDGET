@@ -372,12 +372,6 @@ class _MonthlyUiState extends State<MonthlyUi>
                                                 print(
                                                     "_date.text updated: ${Fromdate.text}");
 
-                                                int daysInCurrentMonth =
-                                                    DateTime(
-                                                            pickDate.year,
-                                                            pickDate.month + 1,
-                                                            0)
-                                                        .day;
                                                 int daysToAdd;
 
                                                 switch (pickDate.month) {
@@ -429,7 +423,7 @@ class _MonthlyUiState extends State<MonthlyUi>
                                           },
                                           decoration: InputDecoration(
                                             hintText: 'From Date',
-                                            suffixIcon: IconButton(
+                                           /* suffixIcon: IconButton(
                                               onPressed: () async {
                                                 DateTime? pickDate =
                                                     await showDatePicker(
@@ -446,14 +440,6 @@ class _MonthlyUiState extends State<MonthlyUi>
                                                             .format(pickDate);
                                                     print(
                                                         "_date.text updated: ${Fromdate.text}");
-
-                                                    int daysInCurrentMonth =
-                                                        DateTime(
-                                                                pickDate.year,
-                                                                pickDate.month +
-                                                                    1,
-                                                                0)
-                                                            .day;
                                                     int daysToAdd;
 
                                                     switch (pickDate.month) {
@@ -502,7 +488,7 @@ class _MonthlyUiState extends State<MonthlyUi>
                                               icon: const Icon(Icons
                                                   .calendar_today_outlined),
                                               color: Colors.green,
-                                            ),
+                                            ),*/
                                           ),
                                           keyboardType: TextInputType.number,
                                           inputFormatters: <TextInputFormatter>[
@@ -535,6 +521,7 @@ class _MonthlyUiState extends State<MonthlyUi>
                                               });
                                             }
                                           },
+                                          readOnly: true,
                                           controller: Todate,
                                           validator: (value) {
                                             if (value!.isEmpty) {
@@ -545,7 +532,7 @@ class _MonthlyUiState extends State<MonthlyUi>
                                           },
                                           decoration: InputDecoration(
                                             hintText: 'To Date',
-                                            suffixIcon: IconButton(
+                                            /*suffixIcon: IconButton(
                                               onPressed: () async {
                                                 DateTime? pickDate =
                                                     await showDatePicker(
@@ -568,7 +555,7 @@ class _MonthlyUiState extends State<MonthlyUi>
                                               icon: const Icon(Icons
                                                   .calendar_today_outlined),
                                               color: Colors.green,
-                                            ),
+                                            ),*/
                                           ),
                                           keyboardType: TextInputType.number,
                                           inputFormatters: <TextInputFormatter>[

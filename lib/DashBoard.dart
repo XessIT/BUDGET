@@ -761,10 +761,7 @@ class _DashBoardState extends State<DashBoard> {
                         // Navigate to another page when the card is tapped
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                              builder: (context) => MonthlyDashboard(
-                                    uid: '',
-                                  )),
+                          MaterialPageRoute(builder: (context) =>  MonthlyDashboard(uid: '5',)),
                         );
                       },
                       child: Container(

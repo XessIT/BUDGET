@@ -74,7 +74,7 @@ class _MonthlyUiState extends State<MonthlyUi>
     return Scaffold(
       // backgroundColor: Colors.deepPurple.shade50,
       appBar: PreferredSize(
-        preferredSize: Size.fromHeight(100),
+        preferredSize: Size.fromHeight(80),
         child: AppBar(
           title: Text(
             "Monthly Budget",
@@ -263,1446 +263,1463 @@ class _MonthlyUiState extends State<MonthlyUi>
           ),
           elevation: 0.00,
           backgroundColor: Color(0xFF8155BA),
-          bottom: TabBar(
+        ),
+      ),
+
+      body: Column(
+        children: [
+          TabBar(
             controller: _tabController,
             tabs: [
               Tab(
                 child: Text(
                   'Monthly',
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: Colors.black),
                 ),
               ),
               Tab(
                 child: Text(
                   'Weekly',
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: Colors.black),
                 ),
               ),
               Tab(
                 child: Text(
                   'Custom',
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: Colors.black),
                 ),
               ),
             ],
           ),
-        ),
-      ),
-      floatingActionButton: _speedDialEnabled
-          ? SpeedDial(
-              icon: Icons.add,
-              activeIcon: Icons.close,
-              spacing: 3,
-              childrenButtonSize: const Size(56.0, 56.0),
-              visible: true,
-              direction: SpeedDialDirection.up,
-              closeManually: true,
-              renderOverlay: false,
-              onOpen: () => debugPrint('OPENING DIAL'),
-              onClose: () => debugPrint('DIAL CLOSED'),
-              useRotationAnimation: true,
-              tooltip: 'Open Speed Dial',
-              heroTag: 'speed-dial-hero-tag',
-              elevation: 8.0,
-              animationCurve: Curves.elasticInOut,
-              isOpenOnStart: false,
-              shape: const StadiumBorder(),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
               children: [
-                SpeedDialChild(
-                  child: const Icon(Icons.dashboard),
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                  label: 'Custom',
-                  onTap: () {
-                    setState(() {
-                      _speedDialEnabled = false; // Disable the Speed Dial
-                    });
-                    showDialog(
-                      context: context,
-                      barrierDismissible:
-                          false, // Set to true to enable the barrier
-
-                      builder: (BuildContext context) {
-                        //DateTime _dialogSelectedDate = _selectedDate;
-                        return StatefulBuilder(
-                          builder: (context, setState) {
-                            return AlertDialog(
-                              title: const Center(
-                                  child: Text(
-                                'Set your Income',
-                                style: TextStyle(
-                                    fontSize: 16,
-                                    fontStyle: FontStyle.italic,
-                                    color: Colors.green),
-                              )),
-                              insetPadding: EdgeInsets.zero,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                side: BorderSide(color: Colors.deepPurple),
-                              ),
-                              shadowColor: Colors.deepPurple,
-                              content: SizedBox(
-                                width: 250, // Set your desired width
-                                height: 350,
-                                child: Container(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.start,
-                                    children: [
-                                      if (fromDate2 != null)
-                                        Text('Start Date: ${fromDate2!}'),
-                                      SizedBox(
-                                        height: 70,
-                                        width: 250,
-                                        child: TextFormField(
-                                          readOnly: true,
-                                          onTap: () async {
-                                            DateTime? pickDate =
-                                                await showDatePicker(
-                                              context: context,
-                                              initialDate: date,
-                                              firstDate: DateTime(1900),
-                                              lastDate: DateTime(2100),
-                                            );
-                                            print("Picked date: $pickDate");
-                                            if (pickDate != null) {
-                                              setState(() {
-                                                Fromdate.text =
-                                                    DateFormat('dd/MM/yyyy')
-                                                        .format(pickDate);
-                                                print(
-                                                    "_date.text updated: ${Fromdate.text}");
-
-                                                int daysInCurrentMonth =
-                                                    DateTime(
-                                                            pickDate.year,
-                                                            pickDate.month + 1,
-                                                            0)
-                                                        .day;
-                                                int daysToAdd;
-
-                                                switch (pickDate.month) {
-                                                  case DateTime.february:
-                                                    bool isLeapYear =
-                                                        pickDate.year % 4 ==
-                                                                0 &&
-                                                            (pickDate.year %
-                                                                        100 !=
-                                                                    0 ||
-                                                                pickDate.year %
-                                                                        400 ==
-                                                                    0);
-                                                    daysToAdd =
-                                                        isLeapYear ? 29 : 28;
-                                                    break;
-                                                  case DateTime.april:
-                                                  case DateTime.june:
-                                                  case DateTime.september:
-                                                  case DateTime.november:
-                                                    daysToAdd = 30;
-                                                    break;
-                                                  default:
-                                                    daysToAdd = 31;
-                                                }
-                                                if (pickDate.day == 1) {
-                                                  toDate = pickDate.add(
-                                                      Duration(
-                                                          days: daysToAdd - 1));
-                                                } else {
-                                                  toDate = pickDate.add(
-                                                      Duration(
-                                                          days: daysToAdd - 1));
-                                                }
-
-                                                Todate.text =
-                                                    DateFormat('dd/MM/yyyy')
-                                                        .format(toDate);
-                                              });
-                                            }
-                                          },
-                                          controller: Fromdate,
-                                          validator: (value) {
-                                            if (value!.isEmpty) {
-                                              return "*Enter the Validity";
-                                            } else {
-                                              return null;
-                                            }
-                                          },
-                                          decoration: InputDecoration(
-                                            hintText: 'From Date',
-                                            suffixIcon: IconButton(
-                                              onPressed: () async {
-                                                DateTime? pickDate =
-                                                    await showDatePicker(
-                                                  context: context,
-                                                  initialDate: date,
-                                                  firstDate: DateTime(1900),
-                                                  lastDate: DateTime(2100),
-                                                );
-                                                print("Picked date: $pickDate");
-                                                if (pickDate != null) {
-                                                  setState(() {
-                                                    Fromdate.text =
-                                                        DateFormat('dd/MM/yyyy')
-                                                            .format(pickDate);
-                                                    print(
-                                                        "_date.text updated: ${Fromdate.text}");
-
-                                                    int daysInCurrentMonth =
-                                                        DateTime(
-                                                                pickDate.year,
-                                                                pickDate.month +
-                                                                    1,
-                                                                0)
-                                                            .day;
-                                                    int daysToAdd;
-
-                                                    switch (pickDate.month) {
-                                                      case DateTime.february:
-                                                        bool isLeapYear = pickDate
-                                                                        .year %
-                                                                    4 ==
-                                                                0 &&
-                                                            (pickDate.year %
-                                                                        100 !=
-                                                                    0 ||
-                                                                pickDate.year %
-                                                                        400 ==
-                                                                    0);
-                                                        daysToAdd = isLeapYear
-                                                            ? 29
-                                                            : 28;
-                                                        break;
-                                                      case DateTime.april:
-                                                      case DateTime.june:
-                                                      case DateTime.september:
-                                                      case DateTime.november:
-                                                        daysToAdd = 30;
-                                                        break;
-                                                      default:
-                                                        daysToAdd = 31;
-                                                    }
-                                                    if (pickDate.day == 1) {
-                                                      toDate = pickDate.add(
-                                                          Duration(
-                                                              days: daysToAdd -
-                                                                  1));
-                                                    } else {
-                                                      toDate = pickDate.add(
-                                                          Duration(
-                                                              days: daysToAdd -
-                                                                  1));
-                                                    }
-
-                                                    Todate.text =
-                                                        DateFormat('dd/MM/yyyy')
-                                                            .format(toDate);
-                                                  });
-                                                }
-                                              },
-                                              icon: const Icon(Icons
-                                                  .calendar_today_outlined),
-                                              color: Colors.green,
-                                            ),
-                                          ),
-                                          keyboardType: TextInputType.number,
-                                          inputFormatters: <TextInputFormatter>[
-                                            FilteringTextInputFormatter
-                                                .digitsOnly,
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(height: 10),
-                                      SizedBox(
-                                        height: 70,
-                                        width: 250,
-                                        child: TextFormField(
-                                          onTap: () async {
-                                            DateTime? pickDate =
-                                                await showDatePicker(
-                                              context: context,
-                                              initialDate: date,
-                                              firstDate: DateTime(1900),
-                                              lastDate: DateTime(2100),
-                                            );
-                                            print("Picked date: $pickDate");
-                                            if (pickDate != null) {
-                                              setState(() {
-                                                Todate.text =
-                                                    DateFormat('dd/MM/yyyy')
-                                                        .format(pickDate);
-                                                print(
-                                                    "_date.text updated: ${Todate.text}");
-                                              });
-                                            }
-                                          },
-                                          controller: Todate,
-                                          validator: (value) {
-                                            if (value!.isEmpty) {
-                                              return "*Enter the Validity";
-                                            } else {
-                                              return null;
-                                            }
-                                          },
-                                          decoration: InputDecoration(
-                                            hintText: 'To Date',
-                                            suffixIcon: IconButton(
-                                              onPressed: () async {
-                                                DateTime? pickDate =
-                                                    await showDatePicker(
-                                                  context: context,
-                                                  initialDate: date,
-                                                  firstDate: DateTime(1900),
-                                                  lastDate: DateTime(2100),
-                                                );
-                                                print("Picked date: $pickDate");
-                                                if (pickDate != null) {
-                                                  setState(() {
-                                                    Todate.text =
-                                                        DateFormat('dd/MM/yyyy')
-                                                            .format(pickDate);
-                                                    print(
-                                                        "_date.text updated: ${Todate.text}");
-                                                  });
-                                                }
-                                              },
-                                              icon: const Icon(Icons
-                                                  .calendar_today_outlined),
-                                              color: Colors.green,
-                                            ),
-                                          ),
-                                          keyboardType: TextInputType.number,
-                                          inputFormatters: <TextInputFormatter>[
-                                            FilteringTextInputFormatter
-                                                .digitsOnly,
-                                          ],
-                                        ),
-                                      ),
-
-                                      /// TODATE
-
-                                      SizedBox(height: 10),
-                                      SizedBox(
-                                        height: 70,
-                                        width: 250,
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            TextFormField(
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyMedium,
-                                              controller: monthlyincomeType,
-                                              decoration: InputDecoration(
-                                                // filled: true,
-                                                // fillColor: Colors.white,
-                                                hintText: 'Income Type',
-                                                labelStyle: Theme.of(context)
-                                                    .textTheme
-                                                    .bodySmall,
-                                                contentPadding:
-                                                    EdgeInsets.symmetric(
-                                                        vertical: 10.0,
-                                                        horizontal: 10.0),
-                                              ),
-                                              inputFormatters: [
-                                                FilteringTextInputFormatter
-                                                    .allow(RegExp(
-                                                        r'[a-zA-Z]')), // Allow only alphabets
-                                              ],
-                                              validator: (value) =>
-                                                  _validateFormField(
-                                                      value, 'Income Type'),
-                                              onChanged: (value) {
-                                                setState(() {
-                                                  _monthlyincomeTypeError =
-                                                      null; // Clear error message when text changes
-                                                });
-                                              },
-                                            ),
-                                            if (_monthlyincomeTypeError != null)
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                    left: 8.0),
-                                                child: Text(
-                                                  _monthlyincomeTypeError!,
-                                                  style: TextStyle(
-                                                      color: Colors.red),
-                                                ),
-                                              ),
-                                            // Add other form fields and error messages here
-                                          ],
-                                        ),
-                                      ),
-                                      SizedBox(height: 2),
-                                      SizedBox(
-                                        height: 70,
-                                        width: 250,
-                                        child: Column(
-                                          children: [
-                                            TextFormField(
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyMedium,
-                                              controller: monthlyincome,
-                                              decoration: InputDecoration(
-                                                // filled: true,
-                                                // fillColor: Colors.white,
-                                                hintText: 'Income Amount',
-                                                labelStyle: Theme.of(context)
-                                                    .textTheme
-                                                    .bodySmall,
-                                                contentPadding:
-                                                    EdgeInsets.symmetric(
-                                                        vertical: 10.0,
-                                                        horizontal: 10.0),
-                                              ),
-                                              validator: (value) =>
-                                                  _validateFormField(
-                                                      value, 'Income Amount'),
-                                              onChanged: (value) {
-                                                setState(() {
-                                                  _monthlyincomeAmountError =
-                                                      null; // Clear error message when text changes
-                                                });
-                                              },
-                                              keyboardType:
-                                                  TextInputType.number,
-                                              inputFormatters: <TextInputFormatter>[
-                                                FilteringTextInputFormatter
-                                                    .digitsOnly,
-                                                LengthLimitingTextInputFormatter(
-                                                    7)
-                                              ],
-                                            ),
-                                            if (_monthlyincomeAmountError !=
-                                                null)
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                    left: 8.0),
-                                                child: Text(
-                                                  _monthlyincomeAmountError!,
-                                                  style: TextStyle(
-                                                      color: Colors.red),
-                                                ),
-                                              )
-                                          ],
-                                        ),
-                                      ),
-                                      SizedBox(height: 10),
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          ElevatedButton(
-                                            onPressed: () {
-                                              Navigator.pop(
-                                                  context); // Close the dialog
-                                            },
-                                            style: ButtonStyle(
-                                              backgroundColor: MaterialStateProperty
-                                                  .all<Color>(Colors
-                                                      .red), // Customize button color
-                                            ),
-                                            child: Text("Cancel",
-                                                style: TextStyle(
-                                                    color: Colors.white)),
-                                          ),
-                                          ElevatedButton(
-                                            onPressed: () {
-                                              // Validate the form
-                                              if (_formKey.currentState!
-                                                  .validate()) {
-                                                // All fields are valid, proceed with your logic
-                                                if (monthlyincomeType
-                                                    .text.isEmpty) {
-                                                  // Set error message for monthlyincomeType
-                                                  setState(() {
-                                                    _monthlyincomeTypeError =
-                                                        'Income Type is required.';
-                                                  });
-                                                } else if (monthlyincome
-                                                    .text.isEmpty) {
-                                                  // Set error message for monthlyincomeType
-                                                  setState(() {
-                                                    _monthlyincomeAmountError =
-                                                        'Income Amount is required.';
-                                                  });
-                                                } else {
-                                                  // Navigator.push(
-                                                  //   context,
-                                                  //   MaterialPageRoute(
-                                                  //     builder: (context) =>
-                                                  //         MonthlyDashboard(
-                                                  //       uid: '',
-                                                  //     ),
-                                                  //   ),
-                                                  // );
-                                                }
-                                              } else {
-                                                // Fields are not valid, trigger a rebuild to display error messages
-                                                setState(() {});
-                                              }
-                                            },
-                                            style: ButtonStyle(
-                                              backgroundColor:
-                                                  MaterialStateProperty.all<
-                                                      Color>(Colors.green),
-                                            ),
-                                            child: Text("Save",
-                                                style: TextStyle(
-                                                    color: Colors.white)),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              backgroundColor: Colors.teal.shade50,
-                            );
-                          },
-                        );
-                      },
-                    );
-                    // Add your logic for the monthly button tap here
-                    debugPrint('Monthly button tapped');
-                  },
+                // Monthly tab content
+                Container(
+                  child: Center(child: Text('Monthly Tab Content')),
                 ),
-                SpeedDialChild(
-                  child: const Icon(Icons.view_day),
-                  backgroundColor: Colors.purpleAccent,
-                  foregroundColor: Colors.white,
-                  label: 'Weekly',
-                  onTap: () {
-                    setState(() {
-                      _speedDialEnabled = false; // Disable the Speed Dial
-                    });
-                    showDialog(
-                      context: context,
-                      barrierDismissible:
-                          false, // Set to true to enable the barrier
-
-                      builder: (BuildContext context) {
-                        //DateTime _dialogSelectedDate = _selectedDate;
-                        return StatefulBuilder(
-                          builder: (context, setState) {
-                            return AlertDialog(
-                              title: const Center(
-                                  child: Text(
-                                'Set your Income',
-                                style: TextStyle(
-                                    fontSize: 16,
-                                    fontStyle: FontStyle.italic,
-                                    color: Colors.green),
-                              )),
-                              insetPadding: EdgeInsets.zero,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                side: BorderSide(color: Colors.deepPurple),
-                              ),
-                              shadowColor: Colors.deepPurple,
-                              content: SizedBox(
-                                width: 250, // Set your desired width
-                                height: 350,
-                                child: Container(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.start,
-                                    children: [
-                                      if (fromDate2 != null)
-                                        Text('Start Date: ${fromDate2!}'),
-                                      SizedBox(
-                                        height: 70,
-                                        width: 250,
-                                        child: TextFormField(
-                                          readOnly: true,
-                                          onTap: () async {
-                                            DateTime? pickDate =
-                                                await showDatePicker(
-                                              context: context,
-                                              initialDate: date,
-                                              firstDate: DateTime(1900),
-                                              lastDate: DateTime(2100),
-                                            );
-                                            print("Picked date: $pickDate");
-                                            if (pickDate != null) {
-                                              setState(() {
-                                                Fromdate.text =
-                                                    DateFormat('dd/MM/yyyy')
-                                                        .format(pickDate);
-                                                print(
-                                                    "_date.text updated: ${Fromdate.text}");
-
-                                                int daysInCurrentMonth =
-                                                    DateTime(
-                                                            pickDate.year,
-                                                            pickDate.month + 1,
-                                                            0)
-                                                        .day;
-                                                int daysToAdd;
-
-                                                switch (pickDate.month) {
-                                                  case DateTime.february:
-                                                    bool isLeapYear =
-                                                        pickDate.year % 4 ==
-                                                                0 &&
-                                                            (pickDate.year %
-                                                                        100 !=
-                                                                    0 ||
-                                                                pickDate.year %
-                                                                        400 ==
-                                                                    0);
-                                                    daysToAdd =
-                                                        isLeapYear ? 29 : 28;
-                                                    break;
-                                                  case DateTime.april:
-                                                  case DateTime.june:
-                                                  case DateTime.september:
-                                                  case DateTime.november:
-                                                    daysToAdd = 30;
-                                                    break;
-                                                  default:
-                                                    daysToAdd = 31;
-                                                }
-                                                if (pickDate.day == 1) {
-                                                  toDate = pickDate.add(
-                                                      Duration(
-                                                          days: daysToAdd - 1));
-                                                } else {
-                                                  toDate = pickDate.add(
-                                                      Duration(
-                                                          days: daysToAdd - 1));
-                                                }
-
-                                                Todate.text =
-                                                    DateFormat('dd/MM/yyyy')
-                                                        .format(toDate);
-                                              });
-                                            }
-                                          },
-                                          controller: Fromdate,
-                                          validator: (value) {
-                                            if (value!.isEmpty) {
-                                              return "*Enter the Validity";
-                                            } else {
-                                              return null;
-                                            }
-                                          },
-                                          decoration: InputDecoration(
-                                            hintText: 'From Date',
-                                            suffixIcon: IconButton(
-                                              onPressed: () async {
-                                                DateTime? pickDate =
-                                                    await showDatePicker(
-                                                  context: context,
-                                                  initialDate: date,
-                                                  firstDate: DateTime(1900),
-                                                  lastDate: DateTime(2100),
-                                                );
-                                                print("Picked date: $pickDate");
-                                                if (pickDate != null) {
-                                                  setState(() {
-                                                    Fromdate.text =
-                                                        DateFormat('dd/MM/yyyy')
-                                                            .format(pickDate);
-                                                    print(
-                                                        "_date.text updated: ${Fromdate.text}");
-
-                                                    int daysInCurrentMonth =
-                                                        DateTime(
-                                                                pickDate.year,
-                                                                pickDate.month +
-                                                                    1,
-                                                                0)
-                                                            .day;
-                                                    int daysToAdd;
-
-                                                    switch (pickDate.month) {
-                                                      case DateTime.february:
-                                                        bool isLeapYear = pickDate
-                                                                        .year %
-                                                                    4 ==
-                                                                0 &&
-                                                            (pickDate.year %
-                                                                        100 !=
-                                                                    0 ||
-                                                                pickDate.year %
-                                                                        400 ==
-                                                                    0);
-                                                        daysToAdd = isLeapYear
-                                                            ? 29
-                                                            : 28;
-                                                        break;
-                                                      case DateTime.april:
-                                                      case DateTime.june:
-                                                      case DateTime.september:
-                                                      case DateTime.november:
-                                                        daysToAdd = 30;
-                                                        break;
-                                                      default:
-                                                        daysToAdd = 31;
-                                                    }
-                                                    if (pickDate.day == 1) {
-                                                      toDate = pickDate.add(
-                                                          Duration(
-                                                              days: daysToAdd -
-                                                                  1));
-                                                    } else {
-                                                      toDate = pickDate.add(
-                                                          Duration(
-                                                              days: daysToAdd -
-                                                                  1));
-                                                    }
-
-                                                    Todate.text =
-                                                        DateFormat('dd/MM/yyyy')
-                                                            .format(toDate);
-                                                  });
-                                                }
-                                              },
-                                              icon: const Icon(Icons
-                                                  .calendar_today_outlined),
-                                              color: Colors.green,
-                                            ),
-                                          ),
-                                          keyboardType: TextInputType.number,
-                                          inputFormatters: <TextInputFormatter>[
-                                            FilteringTextInputFormatter
-                                                .digitsOnly,
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(height: 10),
-                                      SizedBox(
-                                        height: 70,
-                                        width: 250,
-                                        child: TextFormField(
-                                          onTap: () async {
-                                            DateTime? pickDate =
-                                                await showDatePicker(
-                                              context: context,
-                                              initialDate: date,
-                                              firstDate: DateTime(1900),
-                                              lastDate: DateTime(2100),
-                                            );
-                                            print("Picked date: $pickDate");
-                                            if (pickDate != null) {
-                                              setState(() {
-                                                Todate.text =
-                                                    DateFormat('dd/MM/yyyy')
-                                                        .format(pickDate);
-                                                print(
-                                                    "_date.text updated: ${Todate.text}");
-                                              });
-                                            }
-                                          },
-                                          controller: Todate,
-                                          validator: (value) {
-                                            if (value!.isEmpty) {
-                                              return "*Enter the Validity";
-                                            } else {
-                                              return null;
-                                            }
-                                          },
-                                          decoration: InputDecoration(
-                                            hintText: 'To Date',
-                                            suffixIcon: IconButton(
-                                              onPressed: () async {
-                                                DateTime? pickDate =
-                                                    await showDatePicker(
-                                                  context: context,
-                                                  initialDate: date,
-                                                  firstDate: DateTime(1900),
-                                                  lastDate: DateTime(2100),
-                                                );
-                                                print("Picked date: $pickDate");
-                                                if (pickDate != null) {
-                                                  setState(() {
-                                                    Todate.text =
-                                                        DateFormat('dd/MM/yyyy')
-                                                            .format(pickDate);
-                                                    print(
-                                                        "_date.text updated: ${Todate.text}");
-                                                  });
-                                                }
-                                              },
-                                              icon: const Icon(Icons
-                                                  .calendar_today_outlined),
-                                              color: Colors.green,
-                                            ),
-                                          ),
-                                          keyboardType: TextInputType.number,
-                                          inputFormatters: <TextInputFormatter>[
-                                            FilteringTextInputFormatter
-                                                .digitsOnly,
-                                          ],
-                                        ),
-                                      ),
-
-                                      /// TODATE
-
-                                      SizedBox(height: 10),
-                                      SizedBox(
-                                        height: 70,
-                                        width: 250,
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            TextFormField(
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyMedium,
-                                              controller: monthlyincomeType,
-                                              decoration: InputDecoration(
-                                                // filled: true,
-                                                // fillColor: Colors.white,
-                                                hintText: 'Income Type',
-                                                labelStyle: Theme.of(context)
-                                                    .textTheme
-                                                    .bodySmall,
-                                                contentPadding:
-                                                    EdgeInsets.symmetric(
-                                                        vertical: 10.0,
-                                                        horizontal: 10.0),
-                                              ),
-                                              inputFormatters: [
-                                                FilteringTextInputFormatter
-                                                    .allow(RegExp(
-                                                        r'[a-zA-Z]')), // Allow only alphabets
-                                              ],
-                                              validator: (value) =>
-                                                  _validateFormField(
-                                                      value, 'Income Type'),
-                                              onChanged: (value) {
-                                                setState(() {
-                                                  _monthlyincomeTypeError =
-                                                      null; // Clear error message when text changes
-                                                });
-                                              },
-                                            ),
-                                            if (_monthlyincomeTypeError != null)
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                    left: 8.0),
-                                                child: Text(
-                                                  _monthlyincomeTypeError!,
-                                                  style: TextStyle(
-                                                      color: Colors.red),
-                                                ),
-                                              ),
-                                            // Add other form fields and error messages here
-                                          ],
-                                        ),
-                                      ),
-                                      SizedBox(height: 2),
-                                      SizedBox(
-                                        height: 70,
-                                        width: 250,
-                                        child: Column(
-                                          children: [
-                                            TextFormField(
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyMedium,
-                                              controller: monthlyincome,
-                                              decoration: InputDecoration(
-                                                // filled: true,
-                                                // fillColor: Colors.white,
-                                                hintText: 'Income Amount',
-                                                labelStyle: Theme.of(context)
-                                                    .textTheme
-                                                    .bodySmall,
-                                                contentPadding:
-                                                    EdgeInsets.symmetric(
-                                                        vertical: 10.0,
-                                                        horizontal: 10.0),
-                                              ),
-                                              validator: (value) =>
-                                                  _validateFormField(
-                                                      value, 'Income Amount'),
-                                              onChanged: (value) {
-                                                setState(() {
-                                                  _monthlyincomeAmountError =
-                                                      null; // Clear error message when text changes
-                                                });
-                                              },
-                                              keyboardType:
-                                                  TextInputType.number,
-                                              inputFormatters: <TextInputFormatter>[
-                                                FilteringTextInputFormatter
-                                                    .digitsOnly,
-                                                LengthLimitingTextInputFormatter(
-                                                    7)
-                                              ],
-                                            ),
-                                            if (_monthlyincomeAmountError !=
-                                                null)
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                    left: 8.0),
-                                                child: Text(
-                                                  _monthlyincomeAmountError!,
-                                                  style: TextStyle(
-                                                      color: Colors.red),
-                                                ),
-                                              )
-                                          ],
-                                        ),
-                                      ),
-                                      SizedBox(height: 10),
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          ElevatedButton(
-                                            onPressed: () {
-                                              Navigator.pop(
-                                                  context); // Close the dialog
-                                            },
-                                            style: ButtonStyle(
-                                              backgroundColor: MaterialStateProperty
-                                                  .all<Color>(Colors
-                                                      .red), // Customize button color
-                                            ),
-                                            child: Text("Cancel",
-                                                style: TextStyle(
-                                                    color: Colors.white)),
-                                          ),
-                                          ElevatedButton(
-                                            onPressed: () {
-                                              // Validate the form
-                                              if (_formKey.currentState!
-                                                  .validate()) {
-                                                // All fields are valid, proceed with your logic
-                                                if (monthlyincomeType
-                                                    .text.isEmpty) {
-                                                  // Set error message for monthlyincomeType
-                                                  setState(() {
-                                                    _monthlyincomeTypeError =
-                                                        'Income Type is required.';
-                                                  });
-                                                } else if (monthlyincome
-                                                    .text.isEmpty) {
-                                                  // Set error message for monthlyincomeType
-                                                  setState(() {
-                                                    _monthlyincomeAmountError =
-                                                        'Income Amount is required.';
-                                                  });
-                                                } else {
-                                                  // Navigator.push(
-                                                  //   context,
-                                                  //   MaterialPageRoute(
-                                                  //     builder: (context) =>
-                                                  //         MonthlyDashboard(
-                                                  //       uid: '',
-                                                  //     ),
-                                                  //   ),
-                                                  // );
-                                                }
-                                              } else {
-                                                // Fields are not valid, trigger a rebuild to display error messages
-                                                setState(() {});
-                                              }
-                                            },
-                                            style: ButtonStyle(
-                                              backgroundColor:
-                                                  MaterialStateProperty.all<
-                                                      Color>(Colors.teal),
-                                            ),
-                                            child: Text("Save",
-                                                style: TextStyle(
-                                                    color: Colors.white)),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              backgroundColor: Colors.teal.shade50,
-                            );
-                          },
-                        );
-                      },
-                    );
-                    // Add your logic for the monthly button tap here
-                    debugPrint('Monthly button tapped');
-                  },
+                // Weekly tab content
+                Container(
+                  child: Center(child: Text('Weekly Tab Content')),
                 ),
-                SpeedDialChild(
-                  child: const Icon(Icons.date_range),
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  label: 'Monthly',
-                  onTap: () {
-                    setState(() {
-                      _speedDialEnabled = false; // Disable the Speed Dial
-                    });
-                    showDialog(
-                      context: context,
-                      barrierDismissible:
-                          false, // Set to true to enable the barrier
-
-                      builder: (BuildContext context) {
-                        //DateTime _dialogSelectedDate = _selectedDate;
-                        return StatefulBuilder(
-                          builder: (context, setState) {
-                            return AlertDialog(
-                              title: const Center(
-                                  child: Text(
-                                'Set your Income',
-                                style: TextStyle(
-                                    fontSize: 16,
-                                    fontStyle: FontStyle.italic,
-                                    color: Colors.green),
-                              )),
-                              insetPadding: EdgeInsets.zero,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                side: BorderSide(color: Colors.deepPurple),
-                              ),
-                              shadowColor: Colors.deepPurple,
-                              content: SizedBox(
-                                width: 250, // Set your desired width
-                                height: 350,
-                                child: Container(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.start,
-                                    children: [
-                                      if (fromDate2 != null)
-                                        Text('Start Date: ${fromDate2!}'),
-                                      SizedBox(
-                                        height: 70,
-                                        width: 250,
-                                        child: TextFormField(
-                                          readOnly: true,
-                                          onTap: () async {
-                                            DateTime? pickDate =
-                                                await showDatePicker(
-                                              context: context,
-                                              initialDate: date,
-                                              firstDate: DateTime(1900),
-                                              lastDate: DateTime(2100),
-                                            );
-                                            print("Picked date: $pickDate");
-                                            if (pickDate != null) {
-                                              setState(() {
-                                                Fromdate.text =
-                                                    DateFormat('dd/MM/yyyy')
-                                                        .format(pickDate);
-                                                print(
-                                                    "_date.text updated: ${Fromdate.text}");
-
-                                                int daysInCurrentMonth =
-                                                    DateTime(
-                                                            pickDate.year,
-                                                            pickDate.month + 1,
-                                                            0)
-                                                        .day;
-                                                int daysToAdd;
-
-                                                switch (pickDate.month) {
-                                                  case DateTime.february:
-                                                    bool isLeapYear =
-                                                        pickDate.year % 4 ==
-                                                                0 &&
-                                                            (pickDate.year %
-                                                                        100 !=
-                                                                    0 ||
-                                                                pickDate.year %
-                                                                        400 ==
-                                                                    0);
-                                                    daysToAdd =
-                                                        isLeapYear ? 29 : 28;
-                                                    break;
-                                                  case DateTime.april:
-                                                  case DateTime.june:
-                                                  case DateTime.september:
-                                                  case DateTime.november:
-                                                    daysToAdd = 30;
-                                                    break;
-                                                  default:
-                                                    daysToAdd = 31;
-                                                }
-                                                if (pickDate.day == 1) {
-                                                  toDate = pickDate.add(
-                                                      Duration(
-                                                          days: daysToAdd - 1));
-                                                } else {
-                                                  toDate = pickDate.add(
-                                                      Duration(
-                                                          days: daysToAdd - 1));
-                                                }
-
-                                                Todate.text =
-                                                    DateFormat('dd/MM/yyyy')
-                                                        .format(toDate);
-                                              });
-                                            }
-                                          },
-                                          controller: Fromdate,
-                                          validator: (value) {
-                                            if (value!.isEmpty) {
-                                              return "*Enter the Validity";
-                                            } else {
-                                              return null;
-                                            }
-                                          },
-                                          decoration: InputDecoration(
-                                            hintText: 'From Date',
-                                            suffixIcon: IconButton(
-                                              onPressed: () async {
-                                                DateTime? pickDate =
-                                                    await showDatePicker(
-                                                  context: context,
-                                                  initialDate: date,
-                                                  firstDate: DateTime(1900),
-                                                  lastDate: DateTime(2100),
-                                                );
-                                                print("Picked date: $pickDate");
-                                                if (pickDate != null) {
-                                                  setState(() {
-                                                    Fromdate.text =
-                                                        DateFormat('dd/MM/yyyy')
-                                                            .format(pickDate);
-                                                    print(
-                                                        "_date.text updated: ${Fromdate.text}");
-
-                                                    int daysInCurrentMonth =
-                                                        DateTime(
-                                                                pickDate.year,
-                                                                pickDate.month +
-                                                                    1,
-                                                                0)
-                                                            .day;
-                                                    int daysToAdd;
-
-                                                    switch (pickDate.month) {
-                                                      case DateTime.february:
-                                                        bool isLeapYear = pickDate
-                                                                        .year %
-                                                                    4 ==
-                                                                0 &&
-                                                            (pickDate.year %
-                                                                        100 !=
-                                                                    0 ||
-                                                                pickDate.year %
-                                                                        400 ==
-                                                                    0);
-                                                        daysToAdd = isLeapYear
-                                                            ? 29
-                                                            : 28;
-                                                        break;
-                                                      case DateTime.april:
-                                                      case DateTime.june:
-                                                      case DateTime.september:
-                                                      case DateTime.november:
-                                                        daysToAdd = 30;
-                                                        break;
-                                                      default:
-                                                        daysToAdd = 31;
-                                                    }
-                                                    if (pickDate.day == 1) {
-                                                      toDate = pickDate.add(
-                                                          Duration(
-                                                              days: daysToAdd -
-                                                                  1));
-                                                    } else {
-                                                      toDate = pickDate.add(
-                                                          Duration(
-                                                              days: daysToAdd -
-                                                                  1));
-                                                    }
-
-                                                    Todate.text =
-                                                        DateFormat('dd/MM/yyyy')
-                                                            .format(toDate);
-                                                  });
-                                                }
-                                              },
-                                              icon: const Icon(Icons
-                                                  .calendar_today_outlined),
-                                              color: Colors.green,
-                                            ),
-                                          ),
-                                          keyboardType: TextInputType.number,
-                                          inputFormatters: <TextInputFormatter>[
-                                            FilteringTextInputFormatter
-                                                .digitsOnly,
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(height: 10),
-                                      SizedBox(
-                                        height: 70,
-                                        width: 250,
-                                        child: TextFormField(
-                                          onTap: () async {
-                                            DateTime? pickDate =
-                                                await showDatePicker(
-                                              context: context,
-                                              initialDate: date,
-                                              firstDate: DateTime(1900),
-                                              lastDate: DateTime(2100),
-                                            );
-                                            print("Picked date: $pickDate");
-                                            if (pickDate != null) {
-                                              setState(() {
-                                                Todate.text =
-                                                    DateFormat('dd/MM/yyyy')
-                                                        .format(pickDate);
-                                                print(
-                                                    "_date.text updated: ${Todate.text}");
-                                              });
-                                            }
-                                          },
-                                          controller: Todate,
-                                          validator: (value) {
-                                            if (value!.isEmpty) {
-                                              return "*Enter the Validity";
-                                            } else {
-                                              return null;
-                                            }
-                                          },
-                                          decoration: InputDecoration(
-                                            hintText: 'To Date',
-                                            suffixIcon: IconButton(
-                                              onPressed: () async {
-                                                DateTime? pickDate =
-                                                    await showDatePicker(
-                                                  context: context,
-                                                  initialDate: date,
-                                                  firstDate: DateTime(1900),
-                                                  lastDate: DateTime(2100),
-                                                );
-                                                print("Picked date: $pickDate");
-                                                if (pickDate != null) {
-                                                  setState(() {
-                                                    Todate.text =
-                                                        DateFormat('dd/MM/yyyy')
-                                                            .format(pickDate);
-                                                    print(
-                                                        "_date.text updated: ${Todate.text}");
-                                                  });
-                                                }
-                                              },
-                                              icon: const Icon(Icons
-                                                  .calendar_today_outlined),
-                                              color: Colors.green,
-                                            ),
-                                          ),
-                                          keyboardType: TextInputType.number,
-                                          inputFormatters: <TextInputFormatter>[
-                                            FilteringTextInputFormatter
-                                                .digitsOnly,
-                                          ],
-                                        ),
-                                      ),
-
-                                      /// TODATE
-
-                                      SizedBox(height: 10),
-                                      SizedBox(
-                                        height: 70,
-                                        width: 250,
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            TextFormField(
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyMedium,
-                                              controller: monthlyincomeType,
-                                              decoration: InputDecoration(
-                                                // filled: true,
-                                                // fillColor: Colors.white,
-                                                hintText: 'Income Type',
-                                                labelStyle: Theme.of(context)
-                                                    .textTheme
-                                                    .bodySmall,
-                                                contentPadding:
-                                                    EdgeInsets.symmetric(
-                                                        vertical: 10.0,
-                                                        horizontal: 10.0),
-                                              ),
-                                              inputFormatters: [
-                                                FilteringTextInputFormatter
-                                                    .allow(RegExp(
-                                                        r'[a-zA-Z]')), // Allow only alphabets
-                                              ],
-                                              validator: (value) =>
-                                                  _validateFormField(
-                                                      value, 'Income Type'),
-                                              onChanged: (value) {
-                                                setState(() {
-                                                  _monthlyincomeTypeError =
-                                                      null; // Clear error message when text changes
-                                                });
-                                              },
-                                            ),
-                                            if (_monthlyincomeTypeError != null)
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                    left: 8.0),
-                                                child: Text(
-                                                  _monthlyincomeTypeError!,
-                                                  style: TextStyle(
-                                                      color: Colors.red),
-                                                ),
-                                              ),
-                                            // Add other form fields and error messages here
-                                          ],
-                                        ),
-                                      ),
-                                      SizedBox(height: 2),
-                                      SizedBox(
-                                        height: 70,
-                                        width: 250,
-                                        child: Column(
-                                          children: [
-                                            TextFormField(
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyMedium,
-                                              controller: monthlyincome,
-                                              decoration: InputDecoration(
-                                                // filled: true,
-                                                // fillColor: Colors.white,
-                                                hintText: 'Income Amount',
-                                                labelStyle: Theme.of(context)
-                                                    .textTheme
-                                                    .bodySmall,
-                                                contentPadding:
-                                                    EdgeInsets.symmetric(
-                                                        vertical: 10.0,
-                                                        horizontal: 10.0),
-                                              ),
-                                              validator: (value) =>
-                                                  _validateFormField(
-                                                      value, 'Income Amount'),
-                                              onChanged: (value) {
-                                                setState(() {
-                                                  _monthlyincomeAmountError =
-                                                      null; // Clear error message when text changes
-                                                });
-                                              },
-                                              keyboardType:
-                                                  TextInputType.number,
-                                              inputFormatters: <TextInputFormatter>[
-                                                FilteringTextInputFormatter
-                                                    .digitsOnly,
-                                                LengthLimitingTextInputFormatter(
-                                                    7)
-                                              ],
-                                            ),
-                                            if (_monthlyincomeAmountError !=
-                                                null)
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                    left: 8.0),
-                                                child: Text(
-                                                  _monthlyincomeAmountError!,
-                                                  style: TextStyle(
-                                                      color: Colors.red),
-                                                ),
-                                              )
-                                          ],
-                                        ),
-                                      ),
-                                      SizedBox(height: 10),
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          ElevatedButton(
-                                            onPressed: () {
-                                              Navigator.pop(
-                                                  context); // Close the dialog
-                                            },
-                                            style: ButtonStyle(
-                                              backgroundColor: MaterialStateProperty
-                                                  .all<Color>(Colors
-                                                      .red), // Customize button color
-                                            ),
-                                            child: Text("Cancel",
-                                                style: TextStyle(
-                                                    color: Colors.white)),
-                                          ),
-                                          ElevatedButton(
-                                            onPressed: () {
-                                              // Validate the form
-                                              if (_formKey.currentState!
-                                                  .validate()) {
-                                                // All fields are valid, proceed with your logic
-                                                if (monthlyincomeType
-                                                    .text.isEmpty) {
-                                                  // Set error message for monthlyincomeType
-                                                  setState(() {
-                                                    _monthlyincomeTypeError =
-                                                        'Income Type is required.';
-                                                  });
-                                                } else if (monthlyincome
-                                                    .text.isEmpty) {
-                                                  // Set error message for monthlyincomeType
-                                                  setState(() {
-                                                    _monthlyincomeAmountError =
-                                                        'Income Amount is required.';
-                                                  });
-                                                } else {
-                                                  // Navigator.push(
-                                                  //   context,
-                                                  //   MaterialPageRoute(
-                                                  //     builder: (context) =>
-                                                  //         MonthlyDashboard(
-                                                  //       uid: '',
-                                                  //     ),
-                                                  //   ),
-                                                  // );
-                                                }
-                                              } else {
-                                                // Fields are not valid, trigger a rebuild to display error messages
-                                                setState(() {});
-                                              }
-                                            },
-                                            style: ButtonStyle(
-                                              backgroundColor:
-                                                  MaterialStateProperty.all<
-                                                      Color>(Colors.teal),
-                                            ),
-                                            child: Text("Save",
-                                                style: TextStyle(
-                                                    color: Colors.white)),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              backgroundColor: Colors.teal.shade50,
-                            );
-                          },
-                        );
-                      },
-                    );
-                    // Add your logic for the monthly button tap here
-                    debugPrint('Monthly button tapped');
-                  },
+                // Custom tab content
+                Container(
+                  child: Center(child: Text('Custom Tab Content')),
                 ),
               ],
-            )
-          : null,
-      body: Column(
-        children: [
-          Container(
-            child: Column(
-              children: [],
             ),
-          )
+          ),
+
         ],
       ),
+
+      floatingActionButton: _speedDialEnabled
+          ? SpeedDial(
+        icon: Icons.add,
+        activeIcon: Icons.close,
+        spacing: 3,
+        childrenButtonSize: const Size(56.0, 56.0),
+        visible: true,
+        direction: SpeedDialDirection.up,
+        closeManually: true,
+        renderOverlay: false,
+        onOpen: () => debugPrint('OPENING DIAL'),
+        onClose: () => debugPrint('DIAL CLOSED'),
+        useRotationAnimation: true,
+        tooltip: 'Open Speed Dial',
+        heroTag: 'speed-dial-hero-tag',
+        elevation: 8.0,
+        animationCurve: Curves.elasticInOut,
+        isOpenOnStart: false,
+        shape: const StadiumBorder(),
+        children: [
+          SpeedDialChild(
+            child: const Icon(Icons.dashboard),
+            backgroundColor: Colors.red,
+            foregroundColor: Colors.white,
+            label: 'Custom',
+            onTap: () {
+              setState(() {
+                _speedDialEnabled = false; // Disable the Speed Dial
+              });
+              showDialog(
+                context: context,
+                barrierDismissible:
+                false, // Set to true to enable the barrier
+
+                builder: (BuildContext context) {
+                  //DateTime _dialogSelectedDate = _selectedDate;
+                  return StatefulBuilder(
+                    builder: (context, setState) {
+                      return AlertDialog(
+                        title: const Center(
+                            child: Text(
+                              'Set your Income',
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontStyle: FontStyle.italic,
+                                  color: Colors.green),
+                            )),
+                        insetPadding: EdgeInsets.zero,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          side: BorderSide(color: Colors.deepPurple),
+                        ),
+                        shadowColor: Colors.deepPurple,
+                        content: SizedBox(
+                          width: 250, // Set your desired width
+                          height: 350,
+                          child: Container(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              children: [
+                                if (fromDate2 != null)
+                                  Text('Start Date: ${fromDate2!}'),
+                                SizedBox(
+                                  height: 70,
+                                  width: 250,
+                                  child: TextFormField(
+                                    readOnly: true,
+                                    onTap: () async {
+                                      DateTime? pickDate =
+                                      await showDatePicker(
+                                        context: context,
+                                        initialDate: date,
+                                        firstDate: DateTime(1900),
+                                        lastDate: DateTime(2100),
+                                      );
+                                      print("Picked date: $pickDate");
+                                      if (pickDate != null) {
+                                        setState(() {
+                                          Fromdate.text =
+                                              DateFormat('dd/MM/yyyy')
+                                                  .format(pickDate);
+                                          print(
+                                              "_date.text updated: ${Fromdate.text}");
+
+                                          int daysInCurrentMonth =
+                                              DateTime(
+                                                  pickDate.year,
+                                                  pickDate.month + 1,
+                                                  0)
+                                                  .day;
+                                          int daysToAdd;
+
+                                          switch (pickDate.month) {
+                                            case DateTime.february:
+                                              bool isLeapYear =
+                                                  pickDate.year % 4 ==
+                                                      0 &&
+                                                      (pickDate.year %
+                                                          100 !=
+                                                          0 ||
+                                                          pickDate.year %
+                                                              400 ==
+                                                              0);
+                                              daysToAdd =
+                                              isLeapYear ? 29 : 28;
+                                              break;
+                                            case DateTime.april:
+                                            case DateTime.june:
+                                            case DateTime.september:
+                                            case DateTime.november:
+                                              daysToAdd = 30;
+                                              break;
+                                            default:
+                                              daysToAdd = 31;
+                                          }
+                                          if (pickDate.day == 1) {
+                                            toDate = pickDate.add(
+                                                Duration(
+                                                    days: daysToAdd - 1));
+                                          } else {
+                                            toDate = pickDate.add(
+                                                Duration(
+                                                    days: daysToAdd - 1));
+                                          }
+
+                                          Todate.text =
+                                              DateFormat('dd/MM/yyyy')
+                                                  .format(toDate);
+                                        });
+                                      }
+                                    },
+                                    controller: Fromdate,
+                                    validator: (value) {
+                                      if (value!.isEmpty) {
+                                        return "*Enter the Validity";
+                                      } else {
+                                        return null;
+                                      }
+                                    },
+                                    decoration: InputDecoration(
+                                      hintText: 'From Date',
+                                      suffixIcon: IconButton(
+                                        onPressed: () async {
+                                          DateTime? pickDate =
+                                          await showDatePicker(
+                                            context: context,
+                                            initialDate: date,
+                                            firstDate: DateTime(1900),
+                                            lastDate: DateTime(2100),
+                                          );
+                                          print("Picked date: $pickDate");
+                                          if (pickDate != null) {
+                                            setState(() {
+                                              Fromdate.text =
+                                                  DateFormat('dd/MM/yyyy')
+                                                      .format(pickDate);
+                                              print(
+                                                  "_date.text updated: ${Fromdate.text}");
+
+                                              int daysInCurrentMonth =
+                                                  DateTime(
+                                                      pickDate.year,
+                                                      pickDate.month +
+                                                          1,
+                                                      0)
+                                                      .day;
+                                              int daysToAdd;
+
+                                              switch (pickDate.month) {
+                                                case DateTime.february:
+                                                  bool isLeapYear = pickDate
+                                                      .year %
+                                                      4 ==
+                                                      0 &&
+                                                      (pickDate.year %
+                                                          100 !=
+                                                          0 ||
+                                                          pickDate.year %
+                                                              400 ==
+                                                              0);
+                                                  daysToAdd = isLeapYear
+                                                      ? 29
+                                                      : 28;
+                                                  break;
+                                                case DateTime.april:
+                                                case DateTime.june:
+                                                case DateTime.september:
+                                                case DateTime.november:
+                                                  daysToAdd = 30;
+                                                  break;
+                                                default:
+                                                  daysToAdd = 31;
+                                              }
+                                              if (pickDate.day == 1) {
+                                                toDate = pickDate.add(
+                                                    Duration(
+                                                        days: daysToAdd -
+                                                            1));
+                                              } else {
+                                                toDate = pickDate.add(
+                                                    Duration(
+                                                        days: daysToAdd -
+                                                            1));
+                                              }
+
+                                              Todate.text =
+                                                  DateFormat('dd/MM/yyyy')
+                                                      .format(toDate);
+                                            });
+                                          }
+                                        },
+                                        icon: const Icon(Icons
+                                            .calendar_today_outlined),
+                                        color: Colors.green,
+                                      ),
+                                    ),
+                                    keyboardType: TextInputType.number,
+                                    inputFormatters: <TextInputFormatter>[
+                                      FilteringTextInputFormatter
+                                          .digitsOnly,
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                SizedBox(
+                                  height: 70,
+                                  width: 250,
+                                  child: TextFormField(
+                                    onTap: () async {
+                                      DateTime? pickDate =
+                                      await showDatePicker(
+                                        context: context,
+                                        initialDate: date,
+                                        firstDate: DateTime(1900),
+                                        lastDate: DateTime(2100),
+                                      );
+                                      print("Picked date: $pickDate");
+                                      if (pickDate != null) {
+                                        setState(() {
+                                          Todate.text =
+                                              DateFormat('dd/MM/yyyy')
+                                                  .format(pickDate);
+                                          print(
+                                              "_date.text updated: ${Todate.text}");
+                                        });
+                                      }
+                                    },
+                                    controller: Todate,
+                                    validator: (value) {
+                                      if (value!.isEmpty) {
+                                        return "*Enter the Validity";
+                                      } else {
+                                        return null;
+                                      }
+                                    },
+                                    decoration: InputDecoration(
+                                      hintText: 'To Date',
+                                      suffixIcon: IconButton(
+                                        onPressed: () async {
+                                          DateTime? pickDate =
+                                          await showDatePicker(
+                                            context: context,
+                                            initialDate: date,
+                                            firstDate: DateTime(1900),
+                                            lastDate: DateTime(2100),
+                                          );
+                                          print("Picked date: $pickDate");
+                                          if (pickDate != null) {
+                                            setState(() {
+                                              Todate.text =
+                                                  DateFormat('dd/MM/yyyy')
+                                                      .format(pickDate);
+                                              print(
+                                                  "_date.text updated: ${Todate.text}");
+                                            });
+                                          }
+                                        },
+                                        icon: const Icon(Icons
+                                            .calendar_today_outlined),
+                                        color: Colors.green,
+                                      ),
+                                    ),
+                                    keyboardType: TextInputType.number,
+                                    inputFormatters: <TextInputFormatter>[
+                                      FilteringTextInputFormatter
+                                          .digitsOnly,
+                                    ],
+                                  ),
+                                ),
+
+                                /// TODATE
+
+                                SizedBox(height: 10),
+                                SizedBox(
+                                  height: 70,
+                                  width: 250,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                    children: [
+                                      TextFormField(
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium,
+                                        controller: monthlyincomeType,
+                                        decoration: InputDecoration(
+                                          // filled: true,
+                                          // fillColor: Colors.white,
+                                          hintText: 'Income Type',
+                                          labelStyle: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall,
+                                          contentPadding:
+                                          EdgeInsets.symmetric(
+                                              vertical: 10.0,
+                                              horizontal: 10.0),
+                                        ),
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter
+                                              .allow(RegExp(
+                                              r'[a-zA-Z]')), // Allow only alphabets
+                                        ],
+                                        validator: (value) =>
+                                            _validateFormField(
+                                                value, 'Income Type'),
+                                        onChanged: (value) {
+                                          setState(() {
+                                            _monthlyincomeTypeError =
+                                            null; // Clear error message when text changes
+                                          });
+                                        },
+                                      ),
+                                      if (_monthlyincomeTypeError != null)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                              left: 8.0),
+                                          child: Text(
+                                            _monthlyincomeTypeError!,
+                                            style: TextStyle(
+                                                color: Colors.red),
+                                          ),
+                                        ),
+                                      // Add other form fields and error messages here
+                                    ],
+                                  ),
+                                ),
+                                SizedBox(height: 2),
+                                SizedBox(
+                                  height: 70,
+                                  width: 250,
+                                  child: Column(
+                                    children: [
+                                      TextFormField(
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium,
+                                        controller: monthlyincome,
+                                        decoration: InputDecoration(
+                                          // filled: true,
+                                          // fillColor: Colors.white,
+                                          hintText: 'Income Amount',
+                                          labelStyle: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall,
+                                          contentPadding:
+                                          EdgeInsets.symmetric(
+                                              vertical: 10.0,
+                                              horizontal: 10.0),
+                                        ),
+                                        validator: (value) =>
+                                            _validateFormField(
+                                                value, 'Income Amount'),
+                                        onChanged: (value) {
+                                          setState(() {
+                                            _monthlyincomeAmountError =
+                                            null; // Clear error message when text changes
+                                          });
+                                        },
+                                        keyboardType:
+                                        TextInputType.number,
+                                        inputFormatters: <TextInputFormatter>[
+                                          FilteringTextInputFormatter
+                                              .digitsOnly,
+                                          LengthLimitingTextInputFormatter(
+                                              7)
+                                        ],
+                                      ),
+                                      if (_monthlyincomeAmountError !=
+                                          null)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                              left: 8.0),
+                                          child: Text(
+                                            _monthlyincomeAmountError!,
+                                            style: TextStyle(
+                                                color: Colors.red),
+                                          ),
+                                        )
+                                    ],
+                                  ),
+                                ),
+                                SizedBox(height: 10),
+                                Row(
+                                  mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        Navigator.pop(
+                                            context); // Close the dialog
+                                      },
+                                      style: ButtonStyle(
+                                        backgroundColor: MaterialStateProperty
+                                            .all<Color>(Colors
+                                            .red), // Customize button color
+                                      ),
+                                      child: Text("Cancel",
+                                          style: TextStyle(
+                                              color: Colors.white)),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        // Validate the form
+                                        if (_formKey.currentState!
+                                            .validate()) {
+                                          // All fields are valid, proceed with your logic
+                                          if (monthlyincomeType
+                                              .text.isEmpty) {
+                                            // Set error message for monthlyincomeType
+                                            setState(() {
+                                              _monthlyincomeTypeError =
+                                              'Income Type is required.';
+                                            });
+                                          } else if (monthlyincome
+                                              .text.isEmpty) {
+                                            // Set error message for monthlyincomeType
+                                            setState(() {
+                                              _monthlyincomeAmountError =
+                                              'Income Amount is required.';
+                                            });
+                                          } else {
+                                            // Navigator.push(
+                                            //   context,
+                                            //   MaterialPageRoute(
+                                            //     builder: (context) =>
+                                            //         MonthlyDashboard(
+                                            //       uid: '',
+                                            //     ),
+                                            //   ),
+                                            // );
+                                          }
+                                        } else {
+                                          // Fields are not valid, trigger a rebuild to display error messages
+                                          setState(() {});
+                                        }
+                                      },
+                                      style: ButtonStyle(
+                                        backgroundColor:
+                                        MaterialStateProperty.all<
+                                            Color>(Colors.green),
+                                      ),
+                                      child: Text("Save",
+                                          style: TextStyle(
+                                              color: Colors.white)),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        backgroundColor: Colors.teal.shade50,
+                      );
+                    },
+                  );
+                },
+              );
+              // Add your logic for the monthly button tap here
+              debugPrint('Monthly button tapped');
+            },
+          ),
+          SpeedDialChild(
+            child: const Icon(Icons.view_day),
+            backgroundColor: Colors.purpleAccent,
+            foregroundColor: Colors.white,
+            label: 'Weekly',
+            onTap: () {
+              setState(() {
+                _speedDialEnabled = false; // Disable the Speed Dial
+              });
+              showDialog(
+                context: context,
+                barrierDismissible:
+                false, // Set to true to enable the barrier
+
+                builder: (BuildContext context) {
+                  //DateTime _dialogSelectedDate = _selectedDate;
+                  return StatefulBuilder(
+                    builder: (context, setState) {
+                      return AlertDialog(
+                        title: const Center(
+                            child: Text(
+                              'Set your Income',
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontStyle: FontStyle.italic,
+                                  color: Colors.green),
+                            )),
+                        insetPadding: EdgeInsets.zero,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          side: BorderSide(color: Colors.deepPurple),
+                        ),
+                        shadowColor: Colors.deepPurple,
+                        content: SizedBox(
+                          width: 250, // Set your desired width
+                          height: 350,
+                          child: Container(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              children: [
+                                if (fromDate2 != null)
+                                  Text('Start Date: ${fromDate2!}'),
+                                SizedBox(
+                                  height: 70,
+                                  width: 250,
+                                  child: TextFormField(
+                                    readOnly: true,
+                                    onTap: () async {
+                                      DateTime? pickDate =
+                                      await showDatePicker(
+                                        context: context,
+                                        initialDate: date,
+                                        firstDate: DateTime(1900),
+                                        lastDate: DateTime(2100),
+                                      );
+                                      print("Picked date: $pickDate");
+                                      if (pickDate != null) {
+                                        setState(() {
+                                          Fromdate.text =
+                                              DateFormat('dd/MM/yyyy')
+                                                  .format(pickDate);
+                                          print(
+                                              "_date.text updated: ${Fromdate.text}");
+
+                                          int daysInCurrentMonth =
+                                              DateTime(
+                                                  pickDate.year,
+                                                  pickDate.month + 1,
+                                                  0)
+                                                  .day;
+                                          int daysToAdd;
+
+                                          switch (pickDate.month) {
+                                            case DateTime.february:
+                                              bool isLeapYear =
+                                                  pickDate.year % 4 ==
+                                                      0 &&
+                                                      (pickDate.year %
+                                                          100 !=
+                                                          0 ||
+                                                          pickDate.year %
+                                                              400 ==
+                                                              0);
+                                              daysToAdd =
+                                              isLeapYear ? 29 : 28;
+                                              break;
+                                            case DateTime.april:
+                                            case DateTime.june:
+                                            case DateTime.september:
+                                            case DateTime.november:
+                                              daysToAdd = 30;
+                                              break;
+                                            default:
+                                              daysToAdd = 31;
+                                          }
+                                          if (pickDate.day == 1) {
+                                            toDate = pickDate.add(
+                                                Duration(
+                                                    days: daysToAdd - 1));
+                                          } else {
+                                            toDate = pickDate.add(
+                                                Duration(
+                                                    days: daysToAdd - 1));
+                                          }
+
+                                          Todate.text =
+                                              DateFormat('dd/MM/yyyy')
+                                                  .format(toDate);
+                                        });
+                                      }
+                                    },
+                                    controller: Fromdate,
+                                    validator: (value) {
+                                      if (value!.isEmpty) {
+                                        return "*Enter the Validity";
+                                      } else {
+                                        return null;
+                                      }
+                                    },
+                                    decoration: InputDecoration(
+                                      hintText: 'From Date',
+                                      suffixIcon: IconButton(
+                                        onPressed: () async {
+                                          DateTime? pickDate =
+                                          await showDatePicker(
+                                            context: context,
+                                            initialDate: date,
+                                            firstDate: DateTime(1900),
+                                            lastDate: DateTime(2100),
+                                          );
+                                          print("Picked date: $pickDate");
+                                          if (pickDate != null) {
+                                            setState(() {
+                                              Fromdate.text =
+                                                  DateFormat('dd/MM/yyyy')
+                                                      .format(pickDate);
+                                              print(
+                                                  "_date.text updated: ${Fromdate.text}");
+
+                                              int daysInCurrentMonth =
+                                                  DateTime(
+                                                      pickDate.year,
+                                                      pickDate.month +
+                                                          1,
+                                                      0)
+                                                      .day;
+                                              int daysToAdd;
+
+                                              switch (pickDate.month) {
+                                                case DateTime.february:
+                                                  bool isLeapYear = pickDate
+                                                      .year %
+                                                      4 ==
+                                                      0 &&
+                                                      (pickDate.year %
+                                                          100 !=
+                                                          0 ||
+                                                          pickDate.year %
+                                                              400 ==
+                                                              0);
+                                                  daysToAdd = isLeapYear
+                                                      ? 29
+                                                      : 28;
+                                                  break;
+                                                case DateTime.april:
+                                                case DateTime.june:
+                                                case DateTime.september:
+                                                case DateTime.november:
+                                                  daysToAdd = 30;
+                                                  break;
+                                                default:
+                                                  daysToAdd = 31;
+                                              }
+                                              if (pickDate.day == 1) {
+                                                toDate = pickDate.add(
+                                                    Duration(
+                                                        days: daysToAdd -
+                                                            1));
+                                              } else {
+                                                toDate = pickDate.add(
+                                                    Duration(
+                                                        days: daysToAdd -
+                                                            1));
+                                              }
+
+                                              Todate.text =
+                                                  DateFormat('dd/MM/yyyy')
+                                                      .format(toDate);
+                                            });
+                                          }
+                                        },
+                                        icon: const Icon(Icons
+                                            .calendar_today_outlined),
+                                        color: Colors.green,
+                                      ),
+                                    ),
+                                    keyboardType: TextInputType.number,
+                                    inputFormatters: <TextInputFormatter>[
+                                      FilteringTextInputFormatter
+                                          .digitsOnly,
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                SizedBox(
+                                  height: 70,
+                                  width: 250,
+                                  child: TextFormField(
+                                    onTap: () async {
+                                      DateTime? pickDate =
+                                      await showDatePicker(
+                                        context: context,
+                                        initialDate: date,
+                                        firstDate: DateTime(1900),
+                                        lastDate: DateTime(2100),
+                                      );
+                                      print("Picked date: $pickDate");
+                                      if (pickDate != null) {
+                                        setState(() {
+                                          Todate.text =
+                                              DateFormat('dd/MM/yyyy')
+                                                  .format(pickDate);
+                                          print(
+                                              "_date.text updated: ${Todate.text}");
+                                        });
+                                      }
+                                    },
+                                    controller: Todate,
+                                    validator: (value) {
+                                      if (value!.isEmpty) {
+                                        return "*Enter the Validity";
+                                      } else {
+                                        return null;
+                                      }
+                                    },
+                                    decoration: InputDecoration(
+                                      hintText: 'To Date',
+                                      suffixIcon: IconButton(
+                                        onPressed: () async {
+                                          DateTime? pickDate =
+                                          await showDatePicker(
+                                            context: context,
+                                            initialDate: date,
+                                            firstDate: DateTime(1900),
+                                            lastDate: DateTime(2100),
+                                          );
+                                          print("Picked date: $pickDate");
+                                          if (pickDate != null) {
+                                            setState(() {
+                                              Todate.text =
+                                                  DateFormat('dd/MM/yyyy')
+                                                      .format(pickDate);
+                                              print(
+                                                  "_date.text updated: ${Todate.text}");
+                                            });
+                                          }
+                                        },
+                                        icon: const Icon(Icons
+                                            .calendar_today_outlined),
+                                        color: Colors.green,
+                                      ),
+                                    ),
+                                    keyboardType: TextInputType.number,
+                                    inputFormatters: <TextInputFormatter>[
+                                      FilteringTextInputFormatter
+                                          .digitsOnly,
+                                    ],
+                                  ),
+                                ),
+
+                                /// TODATE
+
+                                SizedBox(height: 10),
+                                SizedBox(
+                                  height: 70,
+                                  width: 250,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                    children: [
+                                      TextFormField(
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium,
+                                        controller: monthlyincomeType,
+                                        decoration: InputDecoration(
+                                          // filled: true,
+                                          // fillColor: Colors.white,
+                                          hintText: 'Income Type',
+                                          labelStyle: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall,
+                                          contentPadding:
+                                          EdgeInsets.symmetric(
+                                              vertical: 10.0,
+                                              horizontal: 10.0),
+                                        ),
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter
+                                              .allow(RegExp(
+                                              r'[a-zA-Z]')), // Allow only alphabets
+                                        ],
+                                        validator: (value) =>
+                                            _validateFormField(
+                                                value, 'Income Type'),
+                                        onChanged: (value) {
+                                          setState(() {
+                                            _monthlyincomeTypeError =
+                                            null; // Clear error message when text changes
+                                          });
+                                        },
+                                      ),
+                                      if (_monthlyincomeTypeError != null)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                              left: 8.0),
+                                          child: Text(
+                                            _monthlyincomeTypeError!,
+                                            style: TextStyle(
+                                                color: Colors.red),
+                                          ),
+                                        ),
+                                      // Add other form fields and error messages here
+                                    ],
+                                  ),
+                                ),
+                                SizedBox(height: 2),
+                                SizedBox(
+                                  height: 70,
+                                  width: 250,
+                                  child: Column(
+                                    children: [
+                                      TextFormField(
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium,
+                                        controller: monthlyincome,
+                                        decoration: InputDecoration(
+                                          // filled: true,
+                                          // fillColor: Colors.white,
+                                          hintText: 'Income Amount',
+                                          labelStyle: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall,
+                                          contentPadding:
+                                          EdgeInsets.symmetric(
+                                              vertical: 10.0,
+                                              horizontal: 10.0),
+                                        ),
+                                        validator: (value) =>
+                                            _validateFormField(
+                                                value, 'Income Amount'),
+                                        onChanged: (value) {
+                                          setState(() {
+                                            _monthlyincomeAmountError =
+                                            null; // Clear error message when text changes
+                                          });
+                                        },
+                                        keyboardType:
+                                        TextInputType.number,
+                                        inputFormatters: <TextInputFormatter>[
+                                          FilteringTextInputFormatter
+                                              .digitsOnly,
+                                          LengthLimitingTextInputFormatter(
+                                              7)
+                                        ],
+                                      ),
+                                      if (_monthlyincomeAmountError !=
+                                          null)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                              left: 8.0),
+                                          child: Text(
+                                            _monthlyincomeAmountError!,
+                                            style: TextStyle(
+                                                color: Colors.red),
+                                          ),
+                                        )
+                                    ],
+                                  ),
+                                ),
+                                SizedBox(height: 10),
+                                Row(
+                                  mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        Navigator.pop(
+                                            context); // Close the dialog
+                                      },
+                                      style: ButtonStyle(
+                                        backgroundColor: MaterialStateProperty
+                                            .all<Color>(Colors
+                                            .red), // Customize button color
+                                      ),
+                                      child: Text("Cancel",
+                                          style: TextStyle(
+                                              color: Colors.white)),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        // Validate the form
+                                        if (_formKey.currentState!
+                                            .validate()) {
+                                          // All fields are valid, proceed with your logic
+                                          if (monthlyincomeType
+                                              .text.isEmpty) {
+                                            // Set error message for monthlyincomeType
+                                            setState(() {
+                                              _monthlyincomeTypeError =
+                                              'Income Type is required.';
+                                            });
+                                          } else if (monthlyincome
+                                              .text.isEmpty) {
+                                            // Set error message for monthlyincomeType
+                                            setState(() {
+                                              _monthlyincomeAmountError =
+                                              'Income Amount is required.';
+                                            });
+                                          } else {
+                                            // Navigator.push(
+                                            //   context,
+                                            //   MaterialPageRoute(
+                                            //     builder: (context) =>
+                                            //         MonthlyDashboard(
+                                            //       uid: '',
+                                            //     ),
+                                            //   ),
+                                            // );
+                                          }
+                                        } else {
+                                          // Fields are not valid, trigger a rebuild to display error messages
+                                          setState(() {});
+                                        }
+                                      },
+                                      style: ButtonStyle(
+                                        backgroundColor:
+                                        MaterialStateProperty.all<
+                                            Color>(Colors.teal),
+                                      ),
+                                      child: Text("Save",
+                                          style: TextStyle(
+                                              color: Colors.white)),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        backgroundColor: Colors.teal.shade50,
+                      );
+                    },
+                  );
+                },
+              );
+              // Add your logic for the monthly button tap here
+              debugPrint('Monthly button tapped');
+            },
+          ),
+          SpeedDialChild(
+            child: const Icon(Icons.date_range),
+            backgroundColor: Colors.green,
+            foregroundColor: Colors.white,
+            label: 'Monthly',
+            onTap: () {
+              setState(() {
+                _speedDialEnabled = false; // Disable the Speed Dial
+              });
+              showDialog(
+                context: context,
+                barrierDismissible:
+                false, // Set to true to enable the barrier
+
+                builder: (BuildContext context) {
+                  //DateTime _dialogSelectedDate = _selectedDate;
+                  return StatefulBuilder(
+                    builder: (context, setState) {
+                      return AlertDialog(
+                        title: const Center(
+                            child: Text(
+                              'Set your Income',
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontStyle: FontStyle.italic,
+                                  color: Colors.green),
+                            )),
+                        insetPadding: EdgeInsets.zero,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          side: BorderSide(color: Colors.deepPurple),
+                        ),
+                        shadowColor: Colors.deepPurple,
+                        content: SizedBox(
+                          width: 250, // Set your desired width
+                          height: 350,
+                          child: Container(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              children: [
+                                if (fromDate2 != null)
+                                  Text('Start Date: ${fromDate2!}'),
+                                SizedBox(
+                                  height: 70,
+                                  width: 250,
+                                  child: TextFormField(
+                                    readOnly: true,
+                                    onTap: () async {
+                                      DateTime? pickDate =
+                                      await showDatePicker(
+                                        context: context,
+                                        initialDate: date,
+                                        firstDate: DateTime(1900),
+                                        lastDate: DateTime(2100),
+                                      );
+                                      print("Picked date: $pickDate");
+                                      if (pickDate != null) {
+                                        setState(() {
+                                          Fromdate.text =
+                                              DateFormat('dd/MM/yyyy')
+                                                  .format(pickDate);
+                                          print(
+                                              "_date.text updated: ${Fromdate.text}");
+
+                                          int daysInCurrentMonth =
+                                              DateTime(
+                                                  pickDate.year,
+                                                  pickDate.month + 1,
+                                                  0)
+                                                  .day;
+                                          int daysToAdd;
+
+                                          switch (pickDate.month) {
+                                            case DateTime.february:
+                                              bool isLeapYear =
+                                                  pickDate.year % 4 ==
+                                                      0 &&
+                                                      (pickDate.year %
+                                                          100 !=
+                                                          0 ||
+                                                          pickDate.year %
+                                                              400 ==
+                                                              0);
+                                              daysToAdd =
+                                              isLeapYear ? 29 : 28;
+                                              break;
+                                            case DateTime.april:
+                                            case DateTime.june:
+                                            case DateTime.september:
+                                            case DateTime.november:
+                                              daysToAdd = 30;
+                                              break;
+                                            default:
+                                              daysToAdd = 31;
+                                          }
+                                          if (pickDate.day == 1) {
+                                            toDate = pickDate.add(
+                                                Duration(
+                                                    days: daysToAdd - 1));
+                                          } else {
+                                            toDate = pickDate.add(
+                                                Duration(
+                                                    days: daysToAdd - 1));
+                                          }
+
+                                          Todate.text =
+                                              DateFormat('dd/MM/yyyy')
+                                                  .format(toDate);
+                                        });
+                                      }
+                                    },
+                                    controller: Fromdate,
+                                    validator: (value) {
+                                      if (value!.isEmpty) {
+                                        return "*Enter the Validity";
+                                      } else {
+                                        return null;
+                                      }
+                                    },
+                                    decoration: InputDecoration(
+                                      hintText: 'From Date',
+                                      suffixIcon: IconButton(
+                                        onPressed: () async {
+                                          DateTime? pickDate =
+                                          await showDatePicker(
+                                            context: context,
+                                            initialDate: date,
+                                            firstDate: DateTime(1900),
+                                            lastDate: DateTime(2100),
+                                          );
+                                          print("Picked date: $pickDate");
+                                          if (pickDate != null) {
+                                            setState(() {
+                                              Fromdate.text =
+                                                  DateFormat('dd/MM/yyyy')
+                                                      .format(pickDate);
+                                              print(
+                                                  "_date.text updated: ${Fromdate.text}");
+
+                                              int daysInCurrentMonth =
+                                                  DateTime(
+                                                      pickDate.year,
+                                                      pickDate.month +
+                                                          1,
+                                                      0)
+                                                      .day;
+                                              int daysToAdd;
+
+                                              switch (pickDate.month) {
+                                                case DateTime.february:
+                                                  bool isLeapYear = pickDate
+                                                      .year %
+                                                      4 ==
+                                                      0 &&
+                                                      (pickDate.year %
+                                                          100 !=
+                                                          0 ||
+                                                          pickDate.year %
+                                                              400 ==
+                                                              0);
+                                                  daysToAdd = isLeapYear
+                                                      ? 29
+                                                      : 28;
+                                                  break;
+                                                case DateTime.april:
+                                                case DateTime.june:
+                                                case DateTime.september:
+                                                case DateTime.november:
+                                                  daysToAdd = 30;
+                                                  break;
+                                                default:
+                                                  daysToAdd = 31;
+                                              }
+                                              if (pickDate.day == 1) {
+                                                toDate = pickDate.add(
+                                                    Duration(
+                                                        days: daysToAdd -
+                                                            1));
+                                              } else {
+                                                toDate = pickDate.add(
+                                                    Duration(
+                                                        days: daysToAdd -
+                                                            1));
+                                              }
+
+                                              Todate.text =
+                                                  DateFormat('dd/MM/yyyy')
+                                                      .format(toDate);
+                                            });
+                                          }
+                                        },
+                                        icon: const Icon(Icons
+                                            .calendar_today_outlined),
+                                        color: Colors.green,
+                                      ),
+                                    ),
+                                    keyboardType: TextInputType.number,
+                                    inputFormatters: <TextInputFormatter>[
+                                      FilteringTextInputFormatter
+                                          .digitsOnly,
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                SizedBox(
+                                  height: 70,
+                                  width: 250,
+                                  child: TextFormField(
+                                    onTap: () async {
+                                      DateTime? pickDate =
+                                      await showDatePicker(
+                                        context: context,
+                                        initialDate: date,
+                                        firstDate: DateTime(1900),
+                                        lastDate: DateTime(2100),
+                                      );
+                                      print("Picked date: $pickDate");
+                                      if (pickDate != null) {
+                                        setState(() {
+                                          Todate.text =
+                                              DateFormat('dd/MM/yyyy')
+                                                  .format(pickDate);
+                                          print(
+                                              "_date.text updated: ${Todate.text}");
+                                        });
+                                      }
+                                    },
+                                    controller: Todate,
+                                    validator: (value) {
+                                      if (value!.isEmpty) {
+                                        return "*Enter the Validity";
+                                      } else {
+                                        return null;
+                                      }
+                                    },
+                                    decoration: InputDecoration(
+                                      hintText: 'To Date',
+                                      suffixIcon: IconButton(
+                                        onPressed: () async {
+                                          DateTime? pickDate =
+                                          await showDatePicker(
+                                            context: context,
+                                            initialDate: date,
+                                            firstDate: DateTime(1900),
+                                            lastDate: DateTime(2100),
+                                          );
+                                          print("Picked date: $pickDate");
+                                          if (pickDate != null) {
+                                            setState(() {
+                                              Todate.text =
+                                                  DateFormat('dd/MM/yyyy')
+                                                      .format(pickDate);
+                                              print(
+                                                  "_date.text updated: ${Todate.text}");
+                                            });
+                                          }
+                                        },
+                                        icon: const Icon(Icons
+                                            .calendar_today_outlined),
+                                        color: Colors.green,
+                                      ),
+                                    ),
+                                    keyboardType: TextInputType.number,
+                                    inputFormatters: <TextInputFormatter>[
+                                      FilteringTextInputFormatter
+                                          .digitsOnly,
+                                    ],
+                                  ),
+                                ),
+
+                                /// TODATE
+
+                                SizedBox(height: 10),
+                                SizedBox(
+                                  height: 70,
+                                  width: 250,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                    children: [
+                                      TextFormField(
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium,
+                                        controller: monthlyincomeType,
+                                        decoration: InputDecoration(
+                                          // filled: true,
+                                          // fillColor: Colors.white,
+                                          hintText: 'Income Type',
+                                          labelStyle: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall,
+                                          contentPadding:
+                                          EdgeInsets.symmetric(
+                                              vertical: 10.0,
+                                              horizontal: 10.0),
+                                        ),
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter
+                                              .allow(RegExp(
+                                              r'[a-zA-Z]')), // Allow only alphabets
+                                        ],
+                                        validator: (value) =>
+                                            _validateFormField(
+                                                value, 'Income Type'),
+                                        onChanged: (value) {
+                                          setState(() {
+                                            _monthlyincomeTypeError =
+                                            null; // Clear error message when text changes
+                                          });
+                                        },
+                                      ),
+                                      if (_monthlyincomeTypeError != null)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                              left: 8.0),
+                                          child: Text(
+                                            _monthlyincomeTypeError!,
+                                            style: TextStyle(
+                                                color: Colors.red),
+                                          ),
+                                        ),
+                                      // Add other form fields and error messages here
+                                    ],
+                                  ),
+                                ),
+                                SizedBox(height: 2),
+                                SizedBox(
+                                  height: 70,
+                                  width: 250,
+                                  child: Column(
+                                    children: [
+                                      TextFormField(
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium,
+                                        controller: monthlyincome,
+                                        decoration: InputDecoration(
+                                          // filled: true,
+                                          // fillColor: Colors.white,
+                                          hintText: 'Income Amount',
+                                          labelStyle: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall,
+                                          contentPadding:
+                                          EdgeInsets.symmetric(
+                                              vertical: 10.0,
+                                              horizontal: 10.0),
+                                        ),
+                                        validator: (value) =>
+                                            _validateFormField(
+                                                value, 'Income Amount'),
+                                        onChanged: (value) {
+                                          setState(() {
+                                            _monthlyincomeAmountError =
+                                            null; // Clear error message when text changes
+                                          });
+                                        },
+                                        keyboardType:
+                                        TextInputType.number,
+                                        inputFormatters: <TextInputFormatter>[
+                                          FilteringTextInputFormatter
+                                              .digitsOnly,
+                                          LengthLimitingTextInputFormatter(
+                                              7)
+                                        ],
+                                      ),
+                                      if (_monthlyincomeAmountError !=
+                                          null)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                              left: 8.0),
+                                          child: Text(
+                                            _monthlyincomeAmountError!,
+                                            style: TextStyle(
+                                                color: Colors.red),
+                                          ),
+                                        )
+                                    ],
+                                  ),
+                                ),
+                                SizedBox(height: 10),
+                                Row(
+                                  mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        Navigator.pop(
+                                            context); // Close the dialog
+                                      },
+                                      style: ButtonStyle(
+                                        backgroundColor: MaterialStateProperty
+                                            .all<Color>(Colors
+                                            .red), // Customize button color
+                                      ),
+                                      child: Text("Cancel",
+                                          style: TextStyle(
+                                              color: Colors.white)),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        // Validate the form
+                                        if (_formKey.currentState!
+                                            .validate()) {
+                                          // All fields are valid, proceed with your logic
+                                          if (monthlyincomeType
+                                              .text.isEmpty) {
+                                            // Set error message for monthlyincomeType
+                                            setState(() {
+                                              _monthlyincomeTypeError =
+                                              'Income Type is required.';
+                                            });
+                                          } else if (monthlyincome
+                                              .text.isEmpty) {
+                                            // Set error message for monthlyincomeType
+                                            setState(() {
+                                              _monthlyincomeAmountError =
+                                              'Income Amount is required.';
+                                            });
+                                          } else {
+                                            // Navigator.push(
+                                            //   context,
+                                            //   MaterialPageRoute(
+                                            //     builder: (context) =>
+                                            //         MonthlyDashboard(
+                                            //       uid: '',
+                                            //     ),
+                                            //   ),
+                                            // );
+                                          }
+                                        } else {
+                                          // Fields are not valid, trigger a rebuild to display error messages
+                                          setState(() {});
+                                        }
+                                      },
+                                      style: ButtonStyle(
+                                        backgroundColor:
+                                        MaterialStateProperty.all<
+                                            Color>(Colors.teal),
+                                      ),
+                                      child: Text("Save",
+                                          style: TextStyle(
+                                              color: Colors.white)),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        backgroundColor: Colors.teal.shade50,
+                      );
+                    },
+                  );
+                },
+              );
+              // Add your logic for the monthly button tap here
+              debugPrint('Monthly button tapped');
+            },
+          ),
+        ],
+      )
+          : null,
     );
   }
 }

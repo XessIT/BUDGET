@@ -39,20 +39,27 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     if ($todate === $currentDate) {
         $conn = connectToDatabase();
 
-        // Update the wallet amount
-        $sqlUpdate = "UPDATE wallet
-                      SET wallet = '$remainingAmount'
-                      WHERE uid = '$uid' AND incomeId = '$incomeId'";
+        // Check if data already exists for the current date
+        $sqlCheck = "SELECT * FROM wallet WHERE uid = '$uid' AND incomeId = '$incomeId' AND todate = '$todate'";
+        $result = $conn->query($sqlCheck);
 
-        if ($conn->query($sqlUpdate) === TRUE) {
-            echo json_encode(array("message" => "Wallet amount updated successfully"));
+        if ($result->num_rows == 0) {
+            // Insert new data into the wallet table
+            $sqlInsert = "INSERT INTO wallet (uid, incomeId, wallet, todate)
+                          VALUES ('$uid', '$incomeId', '$remainingAmount', '$todate')";
+
+            if ($conn->query($sqlInsert) === TRUE) {
+                echo json_encode(array("message" => "Wallet amount inserted successfully"));
+            } else {
+                echo json_encode(array("error" => "Error inserting wallet amount: " . $conn->error));
+            }
         } else {
-            echo json_encode(array("error" => "Error updating wallet amount: " . $conn->error));
+            echo json_encode(array("error" => "Data already exists for the current date, skipping wallet insertion"));
         }
 
         $conn->close();
     } else {
-        echo json_encode(array("error" => "Not the current date, skipping wallet update"));
+        echo json_encode(array("error" => "Not the current date, skipping wallet insertion"));
     }
 } else {
     echo json_encode(array("error" => "Invalid request method"));

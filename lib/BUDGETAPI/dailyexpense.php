@@ -33,7 +33,7 @@ function createRecord($data) {
     $incomeId = $data['incomeId'];
     $uid = $data['uid'];
     $fromDate = $data['fromDate']; // Adjusted variable name
-    $toDate = $data['toDate']; // Adjusted variable name
+    $toDate = $data['toDate'];// Adjusted variable name
 
     $sql = "INSERT INTO daily_expense (date, remarks, category, amount, incomeId, fromDate, toDate, uid)
                    VALUES ('$date', '$remarks','$category', '$amount', '$incomeId', '$fromDate', '$toDate', '$uid')";

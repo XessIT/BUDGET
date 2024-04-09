@@ -1,6 +1,8 @@
+import 'dart:developer';
+
+import 'package:bottom_bar_matu/bottom_bar/bottom_bar_bubble.dart';
 import 'package:bottom_bar_matu/bottom_bar_item.dart';
 import 'package:flutter/material.dart';
-import 'package:bottom_bar_matu/bottom_bar/bottom_bar_bubble.dart';
 import 'package:get/get.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:get_storage/get_storage.dart';
@@ -12,6 +14,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'DailyExpensiveDashboard.dart';
 import 'dailyExpences.dart';
+import 'duplicate.dart';
 import 'monthlyDahboard.dart';
 
 class DashBoard extends StatefulWidget {
@@ -22,127 +25,8 @@ class DashBoard extends StatefulWidget {
 }
 
 class _DashBoardState extends State<DashBoard> {
-  final gradientList = <List<Color>>[
-    [
-      Color.fromRGBO(223, 250, 92, 1),
-      Color.fromRGBO(129, 250, 112, 1),
-    ],
-    [
-      Color.fromRGBO(129, 182, 205, 1),
-      Color.fromRGBO(91, 253, 199, 1),
-    ],
-    [
-      Color.fromRGBO(175, 63, 62, 1.0),
-      Color.fromRGBO(254, 154, 92, 1),
-    ]
-  ];
-
-  final colorList = <Color>[
-    Colors.greenAccent,
-  ];
-
-  double totalBudget = 1000;
-  double totalSpent = 500;
-  DateTime _selectedDate = DateTime.now();
-
-  final TextEditingController monthlyincome = TextEditingController();
-  final TextEditingController monthlyincomeType = TextEditingController();
   TextEditingController _textEditingController =
       TextEditingController(text: DateFormat.yMMMd().format(DateTime.now()));
-
-  void _showReportDialog(String selectedMonth) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String>? totalIncomes = prefs.getStringList('totalIncomes');
-    int totalMonthlyIncome = prefs.getInt('totalIncome_$selectedMonth') ?? 0;
-
-    // Filter incomes for the selected month
-    List<String> filteredIncomes = totalIncomes!.where((incomeId) {
-      String selectedIncomeMonth =
-          prefs.getString('$incomeId:selectedMonth') ?? '';
-      return selectedIncomeMonth == selectedMonth;
-    }).toList();
-
-    // Create a list of DataRow for the DataTable
-    List<DataRow> rows = filteredIncomes.map((incomeId) {
-      String incomeType = prefs.getString('$incomeId:incomeType') ?? '';
-      String incomeAmount = prefs.getString('$incomeId:totalincome') ?? '';
-      String selectedDate = prefs.getString('$incomeId:selectedDate') ??
-          ''; // Retrieve selected date
-      return DataRow(cells: [
-        DataCell(Text(selectedDate)), // Display selected date
-        DataCell(Text(incomeType)),
-        DataCell(Text(incomeAmount)),
-      ]);
-    }).toList();
-    // Show the dialog with the DataTable
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return SizedBox(
-          height: 200,
-          width: 200,
-          child: AlertDialog(
-            // title: Text("$selectedMonth Income"), // Modify title to reflect selected month
-            content: SingleChildScrollView(
-              child: DataTable(
-                columns: const [
-                  DataColumn(label: Text('Date')),
-                  DataColumn(label: Text('Income Type')),
-                  DataColumn(label: Text('Income')),
-                ],
-                rows: rows,
-              ),
-            ),
-            actions: [
-              Text("Total Monthly Income: $totalMonthlyIncome"),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: Text("Close"),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _saveDataToSharedPreferences() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-
-    String incomeId = DateTime.now().millisecondsSinceEpoch.toString();
-    String totalincome = monthlyincome.text;
-    String totalincomeType = monthlyincomeType.text;
-    String selectedDate = DateFormat.yMMMd().format(_selectedDate);
-    String selectedMonth = DateFormat.M().format(_selectedDate);
-
-    // Check if there's any existing income for the selected month
-    int totalMonthlyIncome = prefs.getInt('totalIncome_$selectedMonth') ?? 0;
-    totalMonthlyIncome += int.parse(totalincome);
-
-    // Update the total income for the selected month
-    prefs.setInt('totalIncome_$selectedMonth', totalMonthlyIncome);
-
-    prefs.setString('$incomeId:totalincome', totalincome);
-    prefs.setString('$incomeId:incomeType', totalincomeType);
-    prefs.setString('$incomeId:selectedDate', selectedDate);
-    prefs.setString('$incomeId:selectedMonth', selectedMonth);
-
-    List<String> totalIncomes = prefs.getStringList('totalIncomes') ?? [];
-    totalIncomes.add(incomeId);
-    prefs.setStringList('totalIncomes', totalIncomes);
-
-    print('Trip ID: $incomeId');
-    print('Total income: $totalincome');
-    print('Income Type: $totalincomeType');
-    print('Selected Date: $selectedDate');
-
-    // Print the total monthly income
-    print('Total Monthly Income for $selectedMonth: $totalMonthlyIncome');
-
-    //_showAlert();
-  }
 
   @override
   void initState() {
@@ -347,14 +231,24 @@ class _DashBoardState extends State<DashBoard> {
     });
   }
 
+  /// for spped dial
+  int _selectedIndex = 0;
+  bool _isSpeedDialOpen = false;
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+      if (index == 2) {
+        // Assuming index 2 is for the 'Spent' BottomBarItem
+        _isSpeedDialOpen = true;
+      } else {
+        _isSpeedDialOpen = false;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    double remainingBudget = totalBudget - totalSpent;
-
-    Map<String, double> dataMap = {
-      'Total Spent': totalSpent,
-      'Remaining Budget': remainingBudget,
-    };
     return Scaffold(
       backgroundColor: Colors.deepPurple.shade50,
       bottomNavigationBar: BottomBarBubble(
@@ -424,9 +318,16 @@ class _DashBoardState extends State<DashBoard> {
                         child: Row(children: [
                           Padding(
                             padding: const EdgeInsets.all(20.0),
-                            child: Text(
-                              'My Budget',
-                              style: Theme.of(context).textTheme.displayLarge,
+                            child: IconButton(
+                              icon: const Icon(Icons.navigate_before),
+                              color: Colors.white,
+                              onPressed: () {
+                                /*Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (context) =>
+                                            BottomNavigatorExample()));*/
+                              },
                             ),
                           ),
                           SizedBox(
@@ -761,7 +662,10 @@ class _DashBoardState extends State<DashBoard> {
                         // Navigate to another page when the card is tapped
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) =>  MonthlyDashboard(uid: '5',)),
+                          MaterialPageRoute(
+                              builder: (context) => MonthlyDashboard(
+                                    uid: '5',
+                                  )),
                         );
                       },
                       child: Container(
@@ -882,6 +786,8 @@ class _DashBoardState extends State<DashBoard> {
           ),
         ),
       ),
+
+      ///_isSpeedDialOpen
     );
   }
 }

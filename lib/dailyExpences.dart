@@ -63,6 +63,7 @@ class _ExpensePageState extends State<ExpensePage> {
   final TextEditingController incomeType = TextEditingController();
   final TextEditingController fromDate = TextEditingController();
   final TextEditingController toDate = TextEditingController();
+  final TextEditingController walletamountcontroller = TextEditingController();
   TextEditingController addNotes = TextEditingController();
   DateTime _selectedDate = DateTime.now();
   TextEditingController _categoryController = TextEditingController();
@@ -217,6 +218,8 @@ class _ExpensePageState extends State<ExpensePage> {
     }
   }
 
+  double walletAmount = 0.0;
+
   /// Calculation
   Future<void> getwallet(String uid, BuildContext context) async {
     var url =
@@ -234,8 +237,9 @@ class _ExpensePageState extends State<ExpensePage> {
 
       if (responseBody.containsKey('total_wallet')) {
         String totalWallet = responseBody['total_wallet'];
-        print('Total Wallet Amount: $totalWallet');
-        showWalletAmountAlert(context, totalWallet);
+        walletAmount = double.tryParse(totalWallet) ?? 0.0;
+
+        print('Total Wallet Amount: $walletAmount');
       } else {
         print('Total wallet amount not found in the response');
       }
@@ -246,8 +250,7 @@ class _ExpensePageState extends State<ExpensePage> {
 
 // Import material.dart for Flutter's alert dialog
 
-  Future<void> showWalletAmountAlert(
-      BuildContext context, String totalWallet) async {
+  Future<void> showWalletAmountAlert(BuildContext context) async {
     return showDialog<void>(
       context: context,
       barrierDismissible: false, // User must tap button to close the dialog
@@ -258,7 +261,7 @@ class _ExpensePageState extends State<ExpensePage> {
             child: ListBody(
               children: <Widget>[
                 Text(
-                    'Your current wallet amount is: $totalWallet'), // Display wallet amount in the alert dialog
+                    'Your current wallet amount is: $walletAmount'), // Display wallet amount in the alert dialog
               ],
             ),
           ),
@@ -352,58 +355,97 @@ class _ExpensePageState extends State<ExpensePage> {
   //       widget.uid, -amountReturned); // Negative amount to return
   // }
 
-  Future<void> updateWalletAmount(String uid, double amountNeeded) async {
+  // Future<void> updateWalletAmount(String uid, double amountNeeded) async {
+  //   try {
+  //     var url =
+  //         'http://localhost/mybudget/lib/BUDGETAPI/dailyexpensescalculation.php';
+  //     var response = await http.put(
+  //       Uri.parse(url),
+  //       body: jsonEncode({
+  //         'action': 'update_wallet',
+  //         'uid': uid,
+  //         'amount_needed': amountNeeded.toString(),
+  //       }),
+  //       headers: {'Content-Type': 'application/json'},
+  //     );
+  //     if (response.statusCode == 200) {
+  //       print('Wallet amount updated successfully');
+  //     } else {
+  //       print('Failed to update wallet amount: ${response.body}');
+  //     }
+  //   } catch (e) {
+  //     print('Error updating wallet amount: $e');
+  //   }
+  // }
+
+  ///insert wallet
+
+  Future<bool> insertWallet(
+      String uid, double remainingAmount, String todate) async {
     try {
-      var url =
-          'http://localhost/mybudget/lib/BUDGETAPI/dailyexpensescalculation.php';
-      var response = await http.put(
-        Uri.parse(url),
-        body: jsonEncode({
-          'action': 'update_wallet',
-          'uid': uid,
-          'amount_needed': amountNeeded.toString(),
-        }),
-        headers: {'Content-Type': 'application/json'},
-      );
-      if (response.statusCode == 200) {
-        print('Wallet amount updated successfully');
+      var currentDate = DateTime.now()
+          .toString()
+          .substring(0, 10); // Get current date in yyyy-MM-dd format
+      if (todate == currentDate) {
+        var url =
+            'http://localhost/BUDGET/lib/BUDGETAPI/wallet.php?method=updateWallet';
+        var response = await http.post(
+          Uri.parse(url),
+          body: jsonEncode({"uid": uid, "incomeId": widget.incomeId}),
+        );
+
+        if (response.statusCode == 200) {
+          print("Lending Called");
+          print("$uid");
+          print("$remainingAmount");
+          return true;
+        } else {
+          print('Failed to update wallet amount: ${response.body}');
+          return false;
+        }
       } else {
-        print('Failed to update wallet amount: ${response.body}');
+        print('Not inserting wallet as todate is not equal to current date');
+        return false;
       }
     } catch (e) {
       print('Error updating wallet amount: $e');
+      return false;
     }
   }
 
-  ///update wallet
+  ///wallet deduction
 
-  Future<void> updateWallet(String uid, String incomeId, double remainingAmount,
-      String todate) async {
+  Future<bool> deductAmountFromWallet(
+      String uid, double amountToDeduct, String reverse) async {
     try {
-      var url = 'http://localhost/BUDGET/lib/BUDGETAPI/walletupdate.php';
+      if (uid.isEmpty || reverse.isEmpty || amountToDeduct <= 0) {
+        print(
+            'Invalid data: uid, incomeId, or amountToDeduct is empty or invalid');
+        return false;
+      }
+
+      var url =
+          'http://localhost/BUDGET/lib/BUDGETAPI/wallet.php?method=borrow';
       var response = await http.post(
         Uri.parse(url),
         body: jsonEncode({
-          'uid': uid,
-          'incomeId': incomeId,
-          'remainingAmount': remainingAmount.toStringAsFixed(
-              2), // Format remainingAmount to fixed decimal places
-          'todate': todate,
+          "uid": uid,
+          "incomeId": widget.incomeId,
+          "borrowAmt": amountToDeduct.toStringAsFixed(2),
+          "reverse": reverse
         }),
-        headers: {'Content-Type': 'application/json'},
       );
+
       if (response.statusCode == 200) {
-        print("uid: $uid");
-        print("incomeId: $incomeId");
-        print("remainingAmount: $remainingAmount");
-        print("todate: $todate");
-        print("URL: $url");
-        print('Daily Wallet amount updated successfully');
+        loadDataAndCalculateExpenses();
+        return true;
       } else {
         print('Failed to update wallet amount: ${response.body}');
+        return false;
       }
     } catch (e) {
       print('Error updating wallet amount: $e');
+      return false;
     }
   }
 
@@ -421,10 +463,9 @@ class _ExpensePageState extends State<ExpensePage> {
     remainingAmount = budgetAmount - totalAmount;
     print('Remaining Amount: $remainingAmount');
 
+    await insertWallet(widget.uid, remainingAmount, widget.todate);
+
     // Update the wallet with the correct remainingAmount if totalAmount is calculated
-    if (totalAmount != 0) {
-      updateWallet(widget.uid, widget.incomeId, remainingAmount, widget.todate);
-    }
   }
 
   double _calculateTotalExpenses() {
@@ -458,7 +499,9 @@ class _ExpensePageState extends State<ExpensePage> {
   @override
   void initState() {
     super.initState();
+    //updateLendingWallet();
     readRecords(widget.incomeId);
+    getwallet(widget.uid, context);
     _dateController.text = DateFormat('dd-MM-yyyy').format(_selectedDate);
     //_fetchExpenseData();
 
@@ -478,6 +521,52 @@ class _ExpensePageState extends State<ExpensePage> {
     _categoryController.dispose();
     _amountController.dispose();
     super.dispose();
+  }
+
+  //function to show wallet amount borrow input
+  void showInput(String reverse) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Enter Amount'),
+        content: TextField(
+          controller: walletamountcontroller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'Enter Amount',
+            hintText: 'Enter the amount here',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              double amountToDeduct =
+                  double.tryParse(walletamountcontroller.text) ?? 0.0;
+              if (amountToDeduct <= walletAmount) {
+                bool success = await deductAmountFromWallet(
+                    widget.uid, amountToDeduct, reverse);
+                if (success) {
+                  setState(() {
+                    walletAmount -= amountToDeduct;
+                  });
+                  Navigator.of(context).pop(); // Close dialog
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Amount deducted successfully')));
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Failed to deduct amount')));
+                }
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Insufficient wallet balance')));
+              }
+            },
+            child: Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   List<Map<String, dynamic>> trips = [];
@@ -519,7 +608,10 @@ class _ExpensePageState extends State<ExpensePage> {
           actions: [
             IconButton(
               onPressed: () {
-                getwallet(widget.uid, context); // Pass your income ID here
+                showWalletAmountAlert(
+                    context); // You can pass '0' as a placeholder for wallet amount
+                getwallet(widget.uid,
+                    context); // Call getwallet separately after showing the alert
               },
               icon: const Icon(
                 Icons.wallet_rounded,
@@ -643,68 +735,70 @@ class _ExpensePageState extends State<ExpensePage> {
                     children: [
                       if (remainingAmount <= 0)
                         TextButton(
-                            onPressed: () {
-                              AwesomeDialog(
-                                context: context,
-                                dialogType: DialogType.question,
-                                animType: AnimType.rightSlide,
-                                title: 'Get Amount',
-                                desc:
-                                    'Choose where you want to get amount from:',
-                                body: Column(
-                                  children: [
-                                    RadioListTile(
-                                      title: const Text('Monthly expenses'),
-                                      value: 0,
-                                      groupValue: _radioValue,
-                                      onChanged: (int? value) {
-                                        setState(() {
-                                          _radioValue = value!;
-                                          Navigator.of(context)
-                                              .pop(); // Close dialog
-                                          // Navigate to a new screen based on the selected option
-                                          // Replace '/monthly_expenses' with your desired route
-                                          Navigator.of(context)
-                                              .push(MaterialPageRoute(
-                                            builder: (context) =>
-                                                MonthlyDashboard(
-                                              uid: '',
-                                            ),
-                                          )); // Close the dialog
-                                        });
-                                      },
-                                    ),
-                                    RadioListTile(
-                                      title: Text('Wallet'),
-                                      value: 1,
-                                      groupValue: _radioValue,
-                                      onChanged: (int? value) {
-                                        setState(() {
-                                          _radioValue = value!;
-                                          AwesomeDialog(
-                                            context: context,
-                                            dialogType: DialogType.infoReverse,
-                                            title: 'Reverse Amount',
-                                            desc:
-                                                'Do you want to reverse this amount from next month?',
-                                            btnOkText: 'Yes',
-                                            btnCancelText: 'No',
-                                            btnCancelOnPress: () {},
-                                            btnOkOnPress: () {
-                                              // Perform actions when OK is pressed
-                                            },
-                                          ).show();
-                                        });
-                                      },
-                                    ),
-                                  ],
-                                ),
-                                btnCancelOnPress: () {},
-                                btnCancelText: 'Cancel',
-                              ).show();
-                            },
-                            child: Text("Get Amount ",
-                                style: Theme.of(context).textTheme.bodySmall)),
+                          onPressed: () {
+                            AwesomeDialog(
+                              context: context,
+                              dialogType: DialogType.question,
+                              animType: AnimType.rightSlide,
+                              title: 'Get Amount',
+                              desc: 'Choose where you want to get amount from:',
+                              body: Column(
+                                children: [
+                                  RadioListTile(
+                                    title: Text('Monthly expenses'),
+                                    value: 0,
+                                    groupValue: _radioValue,
+                                    onChanged: (int? value) {
+                                      setState(() {
+                                        _radioValue = value!;
+                                        Navigator.of(context)
+                                            .pop(); // Close dialog
+                                        // Navigate to a new screen based on the selected option
+                                        // Replace '/monthly_expenses' with your desired route
+                                        Navigator.of(context)
+                                            .push(MaterialPageRoute(
+                                          builder: (context) =>
+                                              MonthlyDashboard(
+                                            uid: '',
+                                          ),
+                                        )); // Close the dialog
+                                      });
+                                    },
+                                  ),
+                                  RadioListTile(
+                                    title: Text('Wallet'),
+                                    value: 1,
+                                    groupValue: _radioValue,
+                                    onChanged: (int? value) {
+                                      setState(() {
+                                        _radioValue = value!;
+                                        AwesomeDialog(
+                                          context: context,
+                                          dialogType: DialogType.infoReverse,
+                                          title: 'Reverse Amount',
+                                          desc:
+                                              'Do you want to reverse this amount from next month?',
+                                          btnOkText: 'Yes',
+                                          btnCancelText: 'No',
+                                          btnCancelOnPress: () {
+                                            showInput("N");
+                                          },
+                                          btnOkOnPress: () {
+                                            showInput("Y");
+                                          },
+                                        ).show();
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
+                              btnCancelOnPress: () {},
+                              btnCancelText: 'Cancel',
+                            ).show();
+                          },
+                          child: Text("Get Amount ",
+                              style: Theme.of(context).textTheme.bodySmall),
+                        ),
                     ],
                   ),
 

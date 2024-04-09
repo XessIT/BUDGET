@@ -28,9 +28,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     // Extract data from JSON
     $uid = $data['uid'];
-    $incomeId = $data['incomeId'];
-    $remainingAmount = $data['remainingAmount'];
     $todate = $data['todate'];
+    $remainingAmount = $data['remainingAmount'];
 
     // Get the current date in the same format as sent from Dart (YYYY-MM-DD)
     $currentDate = date('Y-m-d');
@@ -39,20 +38,27 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     if ($todate === $currentDate) {
         $conn = connectToDatabase();
 
-        // Update the wallet amount
-        $sqlUpdate = "UPDATE wallet
-                      SET wallet = '$remainingAmount'
-                      WHERE uid = '$uid' AND incomeId = '$incomeId'";
+        // Check if data already exists for the current date
+        $sqlCheck = "SELECT * FROM wallet WHERE uid = '$uid'";
+        $result = $conn->query($sqlCheck);
 
-        if ($conn->query($sqlUpdate) === TRUE) {
-            echo json_encode(array("message" => "Wallet amount updated successfully"));
+        if ($result->num_rows == 0) {
+            // Insert new data into the wallet table
+            $sqlInsert = "INSERT INTO wallet (uid, wallet, todate)
+                          VALUES ('$uid', '$remainingAmount', '$todate')";
+
+            if ($conn->query($sqlInsert) === TRUE) {
+                echo json_encode(array("message" => "Wallet amount inserted successfully"));
+            } else {
+                echo json_encode(array("error" => "Error inserting wallet amount: " . $conn->error));
+            }
         } else {
-            echo json_encode(array("error" => "Error updating wallet amount: " . $conn->error));
+            echo json_encode(array("error" => "Data already exists for the current date, skipping wallet insertion"));
         }
 
         $conn->close();
     } else {
-        echo json_encode(array("error" => "Not the current date, skipping wallet update"));
+        echo json_encode(array("error" => "Not the current date, skipping wallet insertion"));
     }
 } else {
     echo json_encode(array("error" => "Invalid request method"));

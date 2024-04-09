@@ -294,9 +294,16 @@ class _MonthlyUiState extends State<MonthlyUi>
         children: [
           TabBar(
             controller: _tabController,
+/*
+            indicator: BoxDecoration(
+              //borderRadius: BorderRadius.horizontal(),
+              color: Colors.blue,
+            ),
+*/
             labelColor: Colors.white,
             unselectedLabelColor: Colors.black,
-            tabs: const [
+
+            tabs: [
               Tab(
                 child: Text(
                   'Monthly',
@@ -325,11 +332,11 @@ class _MonthlyUiState extends State<MonthlyUi>
                 Month(),
                 // Weekly tab content
                 Container(
-                  child: Center(child: Text('Weekly Tab Content')),
+                  child: Center(child: Text('')),
                 ),
                 // Custom tab content
                 Container(
-                  child: Center(child: Text('Custom Tab Content')),
+                  child: Center(child: Text('')),
                 ),
               ],
             ),
@@ -746,17 +753,14 @@ class _MonthlyUiState extends State<MonthlyUi>
                                   children: [
                                     ElevatedButton(
                                       onPressed: () {
-                                        Navigator.pop(
-                                            context); // Close the dialog
+
+
+                                        Navigator.push(context, MaterialPageRoute(builder: (context) => MonthlyUi(),)); // Close the dialog
                                       },
                                       style: ButtonStyle(
-                                        backgroundColor: MaterialStateProperty
-                                            .all<Color>(Colors
-                                            .red), // Customize button color
+                                        backgroundColor: MaterialStateProperty.all<Color>(Colors.red), // Customize button color
                                       ),
-                                      child: Text("Cancel",
-                                          style: TextStyle(
-                                              color: Colors.white)),
+                                      child: Text("Cancel", style: TextStyle(color: Colors.white)),
                                     ),
                                     ElevatedButton(
                                       onPressed: () {
@@ -1207,17 +1211,13 @@ class _MonthlyUiState extends State<MonthlyUi>
                                   children: [
                                     ElevatedButton(
                                       onPressed: () {
-                                        Navigator.pop(
-                                            context); // Close the dialog
+                                        Navigator.push(context, MaterialPageRoute(builder: (context) => MonthlyUi(),)); // Close the dialog
+
                                       },
                                       style: ButtonStyle(
-                                        backgroundColor: MaterialStateProperty
-                                            .all<Color>(Colors
-                                            .red), // Customize button color
+                                        backgroundColor: MaterialStateProperty.all<Color>(Colors.red), // Customize button color
                                       ),
-                                      child: Text("Cancel",
-                                          style: TextStyle(
-                                              color: Colors.white)),
+                                      child: Text("Cancel", style: TextStyle(color: Colors.white)),
                                     ),
                                     ElevatedButton(
                                       onPressed: () {
@@ -1390,7 +1390,7 @@ class _MonthlyUiState extends State<MonthlyUi>
                                           .digitsOnly,
                                     ],
                                   ),
-                                ),
+                                ), /// fromdate
                                 const SizedBox(height: 10),
                                 SizedBox(
                                   height: 70,
@@ -1414,7 +1414,7 @@ class _MonthlyUiState extends State<MonthlyUi>
                                           .digitsOnly,
                                     ],
                                   ),
-                                ),
+                                ), /// todate
 
                                 /// TODATE
 
@@ -1472,7 +1472,7 @@ class _MonthlyUiState extends State<MonthlyUi>
                                       // Add other form fields and error messages here
                                     ],
                                   ),
-                                ),
+                                ), ///incometype
                                 SizedBox(height: 2),
                                 SizedBox(
                                   height: 70,
@@ -1531,7 +1531,7 @@ class _MonthlyUiState extends State<MonthlyUi>
                                         )
                                     ],
                                   ),
-                                ),
+                                ), ///incomeamount
                                 SizedBox(height: 10),
                                 Row(
                                   mainAxisAlignment:
@@ -1539,18 +1539,14 @@ class _MonthlyUiState extends State<MonthlyUi>
                                   children: [
                                     ElevatedButton(
                                       onPressed: () {
-                                        Navigator.pop(
-                                            context); // Close the dialog
+                                        Navigator.push(context, MaterialPageRoute(builder: (context) => MonthlyUi(),)); // Close the dialog
+
                                       },
                                       style: ButtonStyle(
-                                        backgroundColor: MaterialStateProperty
-                                            .all<Color>(Colors
-                                            .red), // Customize button color
+                                        backgroundColor: MaterialStateProperty.all<Color>(Colors.red), // Customize button color
                                       ),
-                                      child: Text("Cancel",
-                                          style: TextStyle(
-                                              color: Colors.white)),
-                                    ),
+                                      child: Text("Cancel", style: TextStyle(color: Colors.white)),
+                                    ), /// cancel
                                     ElevatedButton(
                                       onPressed: () {
                                         // Validate the form
@@ -1572,9 +1568,9 @@ class _MonthlyUiState extends State<MonthlyUi>
                                       child: Text("Save",
                                           style: TextStyle(
                                               color: Colors.white)),
-                                    ),
+                                    ), /// save
                                   ],
-                                ),
+                                ),  /// cancel & save
                               ],
                             ),
                           ),
@@ -1587,6 +1583,307 @@ class _MonthlyUiState extends State<MonthlyUi>
               );
               // Add your logic for the monthly button tap here
               debugPrint('Monthly button tapped');
+            },
+          ),
+          SpeedDialChild(
+            child: const Icon(Icons.date_range),
+            backgroundColor: Colors.green,
+            foregroundColor: Colors.white,
+            label: 'Monthly',
+            onTap: () {
+              setState(() {
+                _speedDialEnabled = false; // Disable the Speed Dial
+              });
+
+              AwesomeDialog(
+                context: context,
+                dialogType: DialogType.noHeader,
+                width: 350,
+                body: StatefulBuilder(
+                  builder: (context, setState) {
+                    return Container(
+                      padding: EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Set your Income',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontStyle: FontStyle.italic,
+                              color: Colors.green,
+                            ),
+                          ),
+                          SizedBox(height: 20),
+                          // Add your form fields here
+                          SizedBox(
+                            height: 70,
+                            width: 250,
+                            child: TextFormField(
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium,
+                              readOnly: true,
+                              onTap: () async {
+                                DateTime? pickDate =
+                                await showDatePicker(
+                                  context: context,
+                                  initialDate: date,
+                                  firstDate: DateTime(1900),
+                                  lastDate: DateTime(2100),
+                                );
+                                print("Picked date: $pickDate");
+                                if (pickDate != null) {
+                                  setState(() {
+                                    Fromdate.text =
+                                        DateFormat('dd/MM/yyyy')
+                                            .format(pickDate);
+                                    print(
+                                        "_date.text updated: ${Fromdate.text}");
+
+                                    int daysInCurrentMonth =
+                                        DateTime(
+                                            pickDate.year,
+                                            pickDate.month + 1,
+                                            0)
+                                            .day;
+                                    int daysToAdd;
+
+                                    switch (pickDate.month) {
+                                      case DateTime.february:
+                                        bool isLeapYear =
+                                            pickDate.year % 4 ==
+                                                0 &&
+                                                (pickDate.year %
+                                                    100 !=
+                                                    0 ||
+                                                    pickDate.year %
+                                                        400 ==
+                                                        0);
+                                        daysToAdd =
+                                        isLeapYear ? 29 : 28;
+                                        break;
+                                      case DateTime.april:
+                                      case DateTime.june:
+                                      case DateTime.september:
+                                      case DateTime.november:
+                                        daysToAdd = 30;
+                                        break;
+                                      default:
+                                        daysToAdd = 31;
+                                    }
+                                    if (pickDate.day == 1) {
+                                      toDate = pickDate.add(
+                                          Duration(
+                                              days: daysToAdd - 1));
+                                    } else {
+                                      toDate = pickDate.add(
+                                          Duration(
+                                              days: daysToAdd - 1));
+                                    }
+
+                                    Todate.text =
+                                        DateFormat('dd/MM/yyyy')
+                                            .format(toDate);
+                                  });
+                                }
+                              },
+                              controller: Fromdate,
+                              validator: (value) {
+                                if (value!.isEmpty) {
+                                  return "*Enter the Validity";
+                                } else {
+                                  return null;
+                                }
+                              },
+                              decoration: InputDecoration(
+                                hintText: 'From Date',
+                                labelStyle: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall,
+                              ),
+
+
+
+                              keyboardType: TextInputType.number,
+                              inputFormatters: <TextInputFormatter>[
+                                FilteringTextInputFormatter
+                                    .digitsOnly,
+                              ],
+                            ),
+                          ), /// fromdate
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            height: 70,
+                            width: 250,
+                            child: TextFormField(
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium,
+                              readOnly: true,
+                              controller: Todate,
+                              validator: (value) {
+                                if (value!.isEmpty) {
+                                  return "*Enter the Validity";
+                                } else {
+                                  return null;
+                                }
+                              },
+                              decoration: InputDecoration(
+                                hintText: 'To Date',
+                                labelStyle: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall,
+                              ),
+                              keyboardType: TextInputType.number,
+                              inputFormatters: <TextInputFormatter>[
+                                FilteringTextInputFormatter
+                                    .digitsOnly,
+                              ],
+                            ),
+                          ), /// todate
+                          ///
+                          SizedBox(height: 10),
+                          SizedBox(
+                            height: 70,
+                            width: 250,
+                            child: Column(
+                              crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                              children: [
+                                TextFormField(
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium,
+                                  controller: monthlyincomeType,
+                                  decoration: InputDecoration(
+                                    // filled: true,
+                                    // fillColor: Colors.white,
+                                    hintText: 'Income Type',
+                                    labelStyle: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall,
+                                    contentPadding:
+                                    EdgeInsets.symmetric(
+                                        vertical: 10.0,
+                                        horizontal: 10.0),
+                                  ),
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter
+                                        .allow(RegExp(
+                                        r'[a-zA-Z]')), // Allow only alphabets
+                                  ],
+                                  validator: (value) =>
+                                      _validateFormField(
+                                          value, 'Income Type'),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _monthlyincomeTypeError =
+                                      null; // Clear error message when text changes
+                                    });
+                                  },
+                                ),
+                                if (_monthlyincomeTypeError != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                        left: 8.0),
+                                    child: Text(
+                                      _monthlyincomeTypeError!,
+                                      style: TextStyle(
+                                          color: Colors.red),
+                                    ),
+                                  ),
+                                // Add other form fields and error messages here
+                              ],
+                            ),
+                          ), ///incometype
+                          SizedBox(height: 2),
+                          SizedBox(
+                            height: 70,
+                            width: 250,
+                            child: Column(
+                              children: [
+                                TextFormField(
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium,
+                                  controller: monthlyincome,
+                                  decoration: InputDecoration(
+                                    // filled: true,
+                                    // fillColor: Colors.white,
+                                    hintText: 'Income Amount',
+                                    labelStyle: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall,
+                                    contentPadding:
+                                    EdgeInsets.symmetric(
+                                        vertical: 10.0,
+                                        horizontal: 10.0),
+                                  ),
+                                  validator: (value) =>
+                                      _validateFormField(
+                                          value, 'Income Amount'),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _monthlyincomeAmountError =
+                                      null; // Clear error message when text changes
+                                    });
+                                  },
+                                  keyboardType:
+                                  TextInputType.number,
+                                  inputFormatters: <TextInputFormatter>[
+                                    FilteringTextInputFormatter
+                                        .digitsOnly,
+                                    LengthLimitingTextInputFormatter(
+                                        7)
+                                  ],
+                                ),
+                                if (_monthlyincomeAmountError !=
+                                    null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                        left: 8.0),
+                                    child: Text(
+                                      _monthlyincomeAmountError!,
+                                      style: TextStyle(
+                                          color: Colors.red),
+                                    ),
+                                  )
+                              ],
+                            ),
+                          ), ///incomeamount
+
+                          // Add more form fields as needed
+                        ],
+                      ),
+                    );
+                  },
+                ),
+                btnOk: ElevatedButton(
+                  onPressed: () {
+                    // Handle OK button press
+                  },
+                  style: ButtonStyle(
+                    backgroundColor: MaterialStateProperty.all<Color>(Colors.teal),
+                  ),
+                  child: Text(
+                    'Save',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+                btnCancel: ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Close the dialog
+                  },
+                  style: ButtonStyle(
+                    backgroundColor: MaterialStateProperty.all<Color>(Colors.red),
+                  ),
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              )..show();
             },
           ),
         ],

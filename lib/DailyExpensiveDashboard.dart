@@ -22,6 +22,7 @@ class _DailyDashboardState extends State<DailyDashboard> {
   List<Map<String, dynamic>> trips = [];
   List<dynamic> _savedDailyExpenses = [];
   List<dynamic> expenses = [];
+  List<dynamic> data = [];
   double remainingAmount = 0;
   String wallet = '';
 
@@ -188,6 +189,23 @@ class _DailyDashboardState extends State<DailyDashboard> {
 
   // Function to update remaining field in database for a specific incomeId
 
+  ///wallet_log fetch
+
+  Future<void> walletLogFetch(String uid) async {
+    var url =
+        'http://localhost/BUDGET/lib/BUDGETAPI/walletdeduction.php?uid=$uid';
+
+    var response = await http.get(Uri.parse(url));
+
+    if (response.statusCode == 200) {
+      var data = jsonDecode(response.body);
+      print('Wallet_Log: $data');
+      // Assign fetched remaining amount to state variable
+    } else {
+      print('Failed to fetch records: ${response.body}');
+    }
+  }
+
   /// Based on Insert
 
   @override
@@ -284,8 +302,9 @@ class _DailyDashboardState extends State<DailyDashboard> {
       onTap: isToDatePastOrCurrent
           ? null // Disable onTap if toDate is current date
           : () {
-              String incomeId =
-                  expenses['incomeId']; // Extract incomeId from expenses
+              String incomeId = expenses['incomeId'];
+              // Extract incomeId from expenses
+              String uid = expenses['uid'];
               // readRecords(incomeId); // Pass incomeId to readRecords function
               Navigator.push(
                   context,
@@ -297,6 +316,7 @@ class _DailyDashboardState extends State<DailyDashboard> {
                             todate: expenses['toDate'],
                             uid: expenses['uid'],
                           )));
+              walletLogFetch(uid);
             },
       child: Card(
         child: ListTile(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+//import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:get/get.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:get_storage/get_storage.dart';
@@ -13,7 +14,6 @@ import 'home.dart';
 import 'langString.dart';
 import 'login.dart';
 import 'package:provider/provider.dart';
-
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,21 +40,20 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         appBarTheme: AppBarTheme(
-          //   backgroundColor:  Color(0xFF07727a),
+            //   backgroundColor:  Color(0xFF07727a),
 
-        ),
+            ),
         textTheme: GoogleFonts.openSansTextTheme().copyWith(
             bodyLarge: TextStyle(fontSize: 20, color: Colors.black),
             bodySmall: TextStyle(fontSize: 16, color: Colors.black),
             bodyMedium: TextStyle(fontSize: 14, color: Colors.black),
-            labelMedium: TextStyle(fontSize: 16,color: Colors.black),
-            displayLarge: TextStyle(fontSize: 20,color: Colors.white),
-            titleMedium: TextStyle(fontSize: 16,color: Colors.white)
-        ),
+            labelMedium: TextStyle(fontSize: 16, color: Colors.black),
+            displayLarge: TextStyle(fontSize: 20, color: Colors.white),
+            titleMedium: TextStyle(fontSize: 16, color: Colors.white)),
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home:  SignIn(),
+      home: DashBoard(),
       translations: LocaleString(), // Add the translations
       locale: Get.deviceLocale, // Set the initial locale
       fallbackLocale: Locale('en', 'US'),

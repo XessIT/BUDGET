@@ -39,6 +39,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+     $table = isset($_GET['table']) ? $_GET['table'] : "";
+     if ($table == "monthly_expenses") {
     $incomeId = $_GET['incomeId']; // Assuming you're passing incomeId via GET request
     // SQL to calculate total spent for the given incomeId
     $sql = "SELECT SUM(amount) AS total_spent FROM monthly_expenses WHERE incomeId = $incomeId";
@@ -52,6 +54,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         // No records found
         echo json_encode(['totalSpent' => 0]); // Or any default value you want
     }
+  }
+  elseif ($table == "total_calculation") {
+                          $uid = isset($_GET['uid']) ? mysqli_real_escape_string($conn, $_GET['uid']) : "";
+                          $incomeId = isset($_GET['incomeId']) ? mysqli_real_escape_string($conn, $_GET['incomeId']) : "";
+                // Fetch total income amount from monthly_credit
+                    $sql = "SELECT SUM(incomeAmt) AS totalIncomeAmt FROM monthly_credit WHERE uid = '$uid' AND incomeId = '$incomeId'";
+                    $result = $conn->query($sql);
+                    $row = $result->fetch_assoc();
+                    $totalIncomeAmt = $row['totalIncomeAmt'];
+                    $result->free();
+
+                    // Fetch total income amount from add_credit and add it to totalIncomeAmt
+                    $sql = "SELECT SUM(incomeAmt) AS totalAddCreditAmt FROM add_credit WHERE uid = '$uid' AND incomeId = '$incomeId'";
+                    $result = $conn->query($sql);
+                    $row = $result->fetch_assoc();
+                    $totalIncomeAmt += $row['totalAddCreditAmt'];
+                    $result->free();
+
+                    // Fetch total amount from monthly_expenses
+                    $sql = "SELECT SUM(amount) AS totalAmount FROM monthly_expenses WHERE uid = '$uid' AND incomeId = '$incomeId'";
+                    $result = $conn->query($sql);
+                    $row = $result->fetch_assoc();
+                    $totalAmount = $row['totalAmount'];
+                    $result->free();
+
+                    // Calculate remaining amount
+                    $remainingAmount = $totalIncomeAmt - $totalAmount;
+
+                    // Return the data as JSON response
+                    echo json_encode([
+                        'totalIncomeAmt' => $totalIncomeAmt,
+                        'totalAmount' => $totalAmount,
+                        'remainingAmount' => $remainingAmount
+                    ]);
+                    }
 }
 else if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
       // Parse JSON payload from the request

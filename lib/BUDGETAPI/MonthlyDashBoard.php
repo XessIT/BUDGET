@@ -48,7 +48,6 @@
 } */
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $response = array();
-
     // Query to fetch data from monthly_credit table along with totalIncomeAmt, fromDate, toDate, incomeType, and status
     $query = "
         SELECT
@@ -106,6 +105,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
 
 else if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
+$table = isset($_GET['table']) ? $_GET['table'] : "";
+ if ($table == "monthly_dashboard") {
     $data = json_decode(file_get_contents("php://input"));
 
     // Extract data from the request
@@ -124,23 +125,52 @@ else if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
     } else {
         echo json_encode(array("error" => "Failed to update record"));
     }
+ }
+ elseif ($table == "add_wallet_amount") {
+   $data = json_decode(file_get_contents("php://input"));
+
+   // Extract data from the request
+   $incomeId = $data->incomeId;
+   $incomeAmt = $data->incomeAmt;
+
+   // Retrieve the current value of incomeAmt from the database
+   $query = "SELECT incomeAmt FROM monthly_credit WHERE incomeId = '$incomeId'";
+   $result = mysqli_query($conn, $query);
+
+   if ($result && mysqli_num_rows($result) > 0) {
+       $row = mysqli_fetch_assoc($result);
+       $currentIncomeAmt = $row['incomeAmt'];
+
+       // Calculate the new value of incomeAmt by adding the input amount
+       $newIncomeAmt = $currentIncomeAmt + $incomeAmt;
+
+       // Update the monthly_credit table with the new incomeAmt value
+       $updateQuery = "UPDATE monthly_credit SET incomeAmt = '$newIncomeAmt' WHERE incomeId = '$incomeId'";
+       $updateResult = mysqli_query($conn, $updateQuery);
+
+       if ($updateResult) {
+           echo json_encode(array("message" => "Record updated successfully"));
+       } else {
+           echo json_encode(array("error" => "Failed to update record"));
+       }
+   } else {
+       echo json_encode(array("error" => "Record not found"));
+   }
 }
-
-
-
-
+}
 else if ($_SERVER['REQUEST_METHOD'] === 'POST') {
    $data = json_decode(file_get_contents("php://input"));
 
    $uid = mysqli_real_escape_string($conn, $data->uid);
+   $type = mysqli_real_escape_string($conn, $data->type);
    $incomeType = mysqli_real_escape_string($conn, $data->incomeType);
    $incomeAmt = mysqli_real_escape_string($conn, $data->incomeAmt);
    $fromDate = mysqli_real_escape_string($conn, $data->fromDate);
    $toDate = mysqli_real_escape_string($conn, $data->toDate);
    $status = mysqli_real_escape_string($conn, $data->status);
 
-       $insertUserQuery = "INSERT INTO `monthly_credit`(`uid`,`incomeType`,`incomeAmt`,`fromDate`,`toDate`,`status`)
-      VALUES ('$uid','$incomeType','$incomeAmt','$fromDate','$toDate','open')";
+       $insertUserQuery = "INSERT INTO `monthly_credit`(`uid`,`type`,`incomeType`,`incomeAmt`,`fromDate`,`toDate`,`status`)
+      VALUES ('$uid','$type','$incomeType','$incomeAmt','$fromDate','$toDate','open')";
       $arr = [];
       $insertUserResult = mysqli_query($conn, $insertUserQuery);
       if($insertUserResult) {

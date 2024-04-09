@@ -1,7 +1,7 @@
 import 'dart:convert';
-
-import 'package:flutter/cupertino.dart';
+import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -47,7 +47,7 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
   List<Map<String, TextEditingController>> monthlyexpenses = [];
   List<Map<String, dynamic>> trips = [];
   List<String> notesList = [];
-
+  double totalMonthlyExpenses = 0;
   String? errormsg = '';
 
   DateTime _selectedDate = DateTime.now();
@@ -87,8 +87,6 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
         return '';
     }
   }
-
-
 
   double totalspentBudget = 0.0;
   double totalspentbudget2 = 0.0;
@@ -188,13 +186,11 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
     //double remainingBudget = double.parse(widget.budget) - totalspentBudget;
     //String remainingBudgetString = remainingBudget.toStringAsFixed(2);
   }
-
+  String formattedFromDate = "";
   void _addmonthcategoryField() {
     setState(() {
       monthlyexpenses.add({
-        'date': TextEditingController(
-            text: _formatDate(
-                DateTime.now())), // Add TextEditingController for date
+        'date': TextEditingController(text: formattedFromDate), // Add TextEditingController for date
         'monthcategory': TextEditingController(),
         'monthlyamount': TextEditingController(),
         'remarks': TextEditingController(),
@@ -205,18 +201,26 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
 
 
 
-
+  late DateTime fromdateTime;
+  late DateTime todateTime;
   @override
   void initState() {
     super.initState();
+    fetchWalletData();
     _addmonthcategoryField();
     updatetotalspent();
-   // _loadDataFromSharedPreferences();
-   // _getTotalIncomeForSelectedMonth();
+    getTotalData();
+    // _loadDataFromSharedPreferences();
+    // _getTotalIncomeForSelectedMonth();
     _loadDataForMonthly();
     fetchTotalSpent(widget.incomeId);
     futureData = fetchData(widget.uid);
     getData();
+    String fromdateString = widget.fromDate;
+    fromdateTime = DateFormat('yyyy-MM-dd').parse(fromdateString);
+    formattedFromDate = DateFormat('MMM-dd').format(fromdateTime); // Format fromdateTime
+    String todateString = widget.toDate;
+    todateTime = DateFormat('yyyy-MM-dd').parse(todateString);
   }
   void sendDataToServer(List<dynamic> monthlyExpenses) async {
     final url=Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/monthly_spent.php');
@@ -251,11 +255,9 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
       'monthlyexpenses': expenseDataList,
       'fromDate': widget.fromDate,
       'toDate': widget.toDate,
-      'uid': "1",
+      'uid': widget.uid,
       'incomeId': widget.incomeId,
       'totalIncomeAmt': monthlyincome.text,
-
-
     });
     final response = await http.post(
       url,
@@ -276,9 +278,10 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
   }
   String totalSpent = ''; // State variable to hold the total spent amount
   String remaining = ''; // State variable to hold the remaining amount
+  double amountToDeduct = 0;
   TextEditingController dateRangeController = TextEditingController(); // Add controller for TypeAheadFormField
   void fetchTotalSpent(String incomeId) async {
-    final url = Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/monthly_spent.php?incomeId=$incomeId');
+    final url = Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/monthly_spent.php?table=monthly_expenses&incomeId=$incomeId');
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -314,6 +317,28 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
       throw Exception('Failed to load data');
     }
   }
+  double walletAmount = 0;
+  Future<void> fetchWalletData() async {
+    final url =
+    Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/personal_savings.php?table=wallet&uid=${widget.uid}');
+    final response = await http.get(url);
+    if (response.statusCode == 200) {
+      print(url);
+      print('uid : $widget.uid');
+
+      // Parse the JSON response as a map directly
+      var responseBody = jsonDecode(response.body);
+      if (responseBody.containsKey('totalWalletAmount')) {
+        // Access the value directly without treating it as a string
+        walletAmount = (responseBody['totalWalletAmount'] as num).toDouble();
+        print('Total Wallet Amount: $walletAmount');
+      } else {
+        print('Total wallet amount not found in the response');
+      }
+    } else {
+      print('Failed to fetch records: ${response.body}');
+    }
+  }
 
   Future<void> updateMonthRemaining(String uid, String fromDate, String toDate, String newMonthRemaining, String enteredAmount) async {
     final url = Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/monthEndBalance.php');
@@ -339,7 +364,7 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
     }
   }
 
-  List<Map<String, dynamic>> data=[];
+  List<Map<String, dynamic>> spent_data=[];
   Future<void> getData() async {
     print('Attempting to make HTTP request...');
     try {
@@ -355,15 +380,15 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
           // If responseData is a List (multiple records)
           final List<dynamic> itemGroups = responseData;
           setState(() {
-            data = itemGroups.cast<Map<String, dynamic>>();
+            spent_data = itemGroups.cast<Map<String, dynamic>>();
           });
-          print('Data: $data');
+          print('Data: $spent_data');
         } else if (responseData is Map<String, dynamic>) {
           // If responseData is a Map (single record)
           setState(() {
-            data = [responseData];
+            spent_data = [responseData];
           });
-          print('Data: $data');
+          print('Data: $spent_data');
         }
       } else {
         print('Error: ${response.statusCode}');
@@ -378,6 +403,7 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
   TextEditingController editcategory = TextEditingController();
   TextEditingController editamount = TextEditingController();
   TextEditingController editremarks = TextEditingController();
+  TextEditingController walletamountcontroller = TextEditingController();
   Future<void> delete(String id) async {
     try {
       final url = Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/monthly_spent.php?id=$id');
@@ -425,7 +451,90 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
       // Handle error as needed
     }
   }
-
+  bool notesVisible = false;
+  double totalIncomeAmount = 0;
+  double totalSpentAmount = 0;
+  double totalRemainingAmount = 0;
+  Future<void> getTotalData() async {
+    print('Attempting to make HTTP request...');
+    try {
+      final url = Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/monthlyReport.php?table=total_calculation&uid=${widget.uid}&incomeId=${widget.incomeId}');
+      print(url);
+      final response = await http.get(url);
+      print("ResponseStatus: ${response.statusCode}");
+      print("Response: ${response.body}");
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        final totalIncomeAmt = responseData['totalIncomeAmt'] ?? 0;
+        final totalAmount = responseData['totalAmount'] ?? 0;
+        final remainingAmount = responseData['remainingAmount'] ?? 0;
+        print('Total Income Amount: $totalIncomeAmt');
+        print('Total Spent Amount: $totalAmount');
+        print('Total Remaining Amount: $remainingAmount');
+        setState(() {
+          //  budgetdata = responseData['budgetData'];
+          // You can store these values in state variables if needed
+          totalIncomeAmount = totalIncomeAmt;
+          totalSpentAmount = double.parse(totalAmount);
+          totalRemainingAmount = remainingAmount;
+        });
+      } else {
+        print('Error: ${response.statusCode}');
+      }
+      print('HTTP request completed. Status code: ${response.statusCode}');
+    } catch (e) {
+      print('Error making HTTP request: $e');
+      throw e; // rethrow the error if needed
+    }
+  }
+  Future<void> walletAmountToIncome() async {
+    try {
+      final url = Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/MonthlyDashBoard.php?table=add_wallet_amount');
+      print(url);
+      final response = await http.put(
+        url,
+        body: jsonEncode({
+          "incomeAmt": amountToDeduct,
+          "incomeId": widget.incomeId,
+        }),
+      );
+      if (response.statusCode == 200) {
+        print("Response Status: ${response.statusCode}");
+        print("Response Body: ${response.body}");
+        // Navigator.push(context, MaterialPageRoute(builder: (context) => const NewMemberApproval()));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Successfully Added Amount from Wallet")));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Failed to Edit")));
+      }
+    } catch (e) {
+      print("Error during signup: $e");
+      // Handle error as needed
+    }
+  }
+  Future<void> deductAmountFromWallet() async {
+    try {
+      var url = 'http://localhost/BUDGET/lib/BUDGETAPI/personal_savings.php?table=savings_credit';
+      var response = await http.post(
+        Uri.parse(url),
+        body: jsonEncode({
+          "uid": widget.uid,
+          "incomeId": widget.incomeId,
+          "amount": amountToDeduct,
+        }),
+      );
+      if (response.statusCode == 200) {
+        walletAmountToIncome();
+        // loadDataAndCalculateExpenses();
+        print("Response Status: $response.statusCode");
+        print("Response Body: $response.body");
+        Navigator.push(context, MaterialPageRoute(builder: (context) =>  MonthlyBudget2(uid: widget.uid, incomeId: widget.incomeId, fromDate: widget.fromDate, toDate: widget.toDate, totalIncomeAmt: widget.totalIncomeAmt,)));
+      } else {
+        print('Failed to update wallet amount: ${response.body}');
+      }
+    } catch (e) {
+      print('Error updating wallet amount: $e');
+    }
+  }
   @override
   Widget build(BuildContext context) {
 
@@ -466,9 +575,17 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
       appBar: PreferredSize(
         preferredSize: Size.fromHeight(80),
         child: AppBar(
-          title: Text(
-            "Monthly Budget",
-            style: Theme.of(context).textTheme.titleMedium,
+          title: Column(
+            children: [
+              Text(
+                "Monthly Budget",
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              Text(
+                "${DateFormat('MMM-dd').format(fromdateTime)} to ${DateFormat('MMM-dd').format(todateTime)}",
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ],
           ),
           leading: IconButton(
             icon: const Icon(Icons.navigate_before),
@@ -477,11 +594,46 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
               Navigator.push(context, MaterialPageRoute(builder: (context) =>  MonthlyDashboard(uid: '',)));
             },
           ),
+          actions: [
+            IconButton(
+              onPressed: () {
+                showDialog<void>(
+                  context: context,
+                  barrierDismissible: false, // User must tap button to close the dialog
+                  builder: (BuildContext context) {
+                    return AlertDialog(
+                      title: Text('Wallet Amount'),
+                      content: SingleChildScrollView(
+                        child: ListBody(
+                          children: <Widget>[
+                            Text(
+                                'Your current wallet amount is: ${walletAmount.toString()}'), // Display wallet amount in the alert dialog
+                          ],
+                        ),
+                      ),
+                      actions: <Widget>[
+                        TextButton(
+                          child: Text('OK'),
+                          onPressed: () {
+                            Navigator.of(context).pop(); // Close the dialog
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                ); // You can pass '0' as a placeholder for wallet amount
+              },
+              icon: const Icon(
+                Icons.wallet_rounded,
+                color: Colors.white,
+              ),
+            ),
+          ],
           titleSpacing: 00.0,
           centerTitle: true,
           toolbarHeight: 60.2,
           toolbarOpacity: 0.8,
-          shape: RoundedRectangleBorder(
+          shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.only(
               bottomRight: Radius.circular(25),
               bottomLeft: Radius.circular(25),
@@ -509,7 +661,7 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
               ),*/
 
 
-              Row(
+              /* Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   TextButton(
@@ -695,7 +847,7 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
                     },
                     child: Text("Get Remaining"),
                   ),
-                  RichText(
+                  *//*RichText(
                     text: TextSpan(
                       children: [
 
@@ -706,11 +858,99 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
                       ],
                     ),
                     textAlign: TextAlign.left,
-                  ),
+                  ),*//*
                 ],
 
-              ),  ///  Text Field
-
+              ), */ ///  Text Field
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (totalRemainingAmount <= 0)
+                    TextButton(
+                      onPressed: () {
+                        AwesomeDialog(
+                          context: context,
+                          dialogType: DialogType.infoReverse,
+                          title: 'Get Amount',
+                          desc:
+                          'Do you want to Get Amount from Wallet?',
+                          btnOkText: 'Yes',
+                          btnCancelText: 'No',
+                          btnCancelOnPress: () {},
+                          btnOkOnPress: () {
+                            // Show the text field when user clicks "Yes"
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: Text('Enter Amount'),
+                                content: TextField(
+                                  controller: walletamountcontroller,
+                                  keyboardType:
+                                  const TextInputType
+                                      .numberWithOptions(
+                                      decimal: true),
+                                  decoration:
+                                  const InputDecoration(
+                                    labelText: 'Enter Amount',
+                                    hintText:
+                                    'Enter the amount here',
+                                    border:
+                                    OutlineInputBorder(),
+                                  ),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () async {
+                                       amountToDeduct =
+                                          double.tryParse(
+                                              walletamountcontroller
+                                                  .text) ??
+                                              0.0;
+                                      if (amountToDeduct <= walletAmount) {
+                                         deductAmountFromWallet();
+                                        /*if (success) {
+                                          setState(() {
+                                            walletAmount -= amountToDeduct;
+                                          });
+                                          Navigator.of(context).pop(); // Close dialog
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                                content: Text(
+                                                    'Amount deducted successfully')),
+                                          );
+                                        } else {
+                                          ScaffoldMessenger.of(
+                                              context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                                content: Text(
+                                                    'Failed to deduct amount')),
+                                          );
+                                        }*/
+                                      } else {
+                                        ScaffoldMessenger.of(
+                                            context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                              content: Text(
+                                                  'Insufficient wallet balance')),
+                                        );
+                                      }
+                                    },
+                                    child: Text('OK'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            // Perform actions when OK is pressed
+                          },
+                        ).show();
+                      },
+                      child: Text("Get Amount ",
+                          style: Theme.of(context).textTheme.bodySmall),
+                    ),
+                ],
+              ),
 
               SizedBox(height: 10,),
 
@@ -748,7 +988,7 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
 
                                   Text('Income',style: Theme.of(context).textTheme.labelMedium),
                                   SizedBox(width: 70,),
-                                  Text('₹${double.parse(monthlyincome.text).toStringAsFixed(2)}' ,style: Theme.of(context).textTheme.labelMedium,
+                                  Text('₹${monthlyincome.text}.00' ,style: Theme.of(context).textTheme.labelMedium,
                                   ),
                                   IconButton(onPressed: (){
                                     showDialog(
@@ -805,7 +1045,6 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
                                                         ),
                                                       ),
                                                     ), /// Income Amount
-
                                                   ],
                                                 ),
                                               ),
@@ -813,6 +1052,7 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
                                                 ElevatedButton(
                                                   onPressed: () {
                                                     //_saveDataToSharedPreferencesCredit();
+                                                    fetchTotalSpent(widget.incomeId);
                                                     insertMonthlyData();
                                                     Navigator.push(
                                                       context,
@@ -861,9 +1101,9 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
                             padding: const EdgeInsets.all(8.0),
                             child: CircleAvatar(
                               child: Icon(SimpleIcons.affine, color: Colors.white),
-                              backgroundColor: totalBudgetAmount > double.parse(monthlyincome.text)
+                              /*backgroundColor: totalBudgetAmount > double.parse(monthlyincome.text)
                                   ? Colors.red // Orange color when spent exceeds received amount
-                                  : Colors.teal,
+                                  : Colors.teal,*/
                             ),
                           ),
                           SizedBox(width: 8),
@@ -872,7 +1112,7 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.start,
                                 children: [
-                                  Text('Budget', style: Theme.of(context).textTheme.labelMedium),
+                                  Text('Expense', style: Theme.of(context).textTheme.labelMedium),
                                   SizedBox(width: 70),
                                   Text('₹${totalSpent.isNotEmpty ? totalSpent : '0.00'}', style: Theme.of(context).textTheme.labelMedium),
                                 ],
@@ -901,9 +1141,9 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
                             padding: const EdgeInsets.all(8.0),
                             child: CircleAvatar(
                               child: Icon(SimpleIcons.affine, color: Colors.white),
-                              backgroundColor: totalBudgetAmount > double.parse(monthlyincome.text)
+                              /*backgroundColor: totalBudgetAmount > double.parse(monthlyincome.text)
                                   ? Colors.red // Orange color when spent exceeds received amount
-                                  : Colors.teal,
+                                  : Colors.teal,*/
                             ),
                           ),
                           SizedBox(width: 8),
@@ -983,7 +1223,7 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
                             numberFormat: NumberFormat.compact(),
                           ),
                           series: <CartesianSeries>[
-                            BarSeries<SalesData, String>(
+                            /*BarSeries<SalesData, String>(
                               dataSource: chartData,
                               xValueMapper: (SalesData sales, _) => sales.category,
                               yValueMapper: (SalesData sales, _) => sales.amount,
@@ -994,7 +1234,7 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
                               // Assigning colors directly to each data point
                               pointColorMapper: (SalesData sales, _) => _getColorForCategory(sales.category),
                               width: 0.1,
-                            ),
+                            ),*/
                           ],
                         ),
                       ),
@@ -1002,8 +1242,7 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
                   ),
                 ),
               ), /// Chart
-
-
+              totalRemainingAmount > 0 ?
               Container(
                 padding: EdgeInsets.all(10.0),
                 child: Column(
@@ -1054,18 +1293,18 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
                                               readOnly: true,
                                               controller: monthlyexpenses[i][
                                               'date']!, // Assuming expense['date'] is already a TextEditingController
-                                              style: TextStyle(
+                                              /*style: TextStyle(
                                                   fontSize: 14,
                                                   color: Colors.black,
-                                                  fontWeight: FontWeight.bold),
+                                                  fontWeight: FontWeight.bold),*/
                                               onTap: () async {
                                                 // Show date picker when the field is tapped
                                                 DateTime? pickedDate =
                                                 await showDatePicker(
                                                   context: context,
-                                                  initialDate: DateTime.now(),
-                                                  firstDate: DateTime(2000),
-                                                  lastDate: DateTime(2101),
+                                                  initialDate: fromdateTime,
+                                                  firstDate: fromdateTime,
+                                                  lastDate: DateTime.now().isBefore(todateTime) ? DateTime.now() : todateTime,
                                                   builder: (BuildContext context,
                                                       Widget? child) {
                                                     return Theme(
@@ -1089,6 +1328,10 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
                                                 }
                                               },
                                               decoration: InputDecoration(
+                                                hintText: monthlyexpenses[i]['date']!.text.isEmpty
+                                                    ? 'Date'
+                                                    : null,
+                                                hintStyle: const TextStyle(fontSize: 16, color: Colors.black),
                                               ),
                                             ),
                                           ),
@@ -1202,6 +1445,8 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
                                               onChanged: (value) {
                                                 setState(() {
                                                   //updatetotalspent();
+                                                  notesVisible = true;
+                                                  // _addmonthcategoryField();
                                                   _updateTotalBudget2();
                                                   setState(() {
                                                     errormsg = null;
@@ -1220,149 +1465,57 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
                                                     color: Colors.black),
                                               ),
                                               keyboardType: TextInputType.number,
+                                              inputFormatters: [
+                                                FilteringTextInputFormatter.digitsOnly,
+                                                LengthLimitingTextInputFormatter(7),
+                                              ],
+                                            ),
+                                          ),
+                                          SizedBox(width: 16),
+                                          Expanded(
+                                            child: TextField(
+                                              controller:
+                                              monthlyexpenses[i]
+                                              ['remarks'],
+                                              onChanged: (value) {
+                                                setState(() {
+                                                  setState(() {
+                                                    errormsg = null;
+                                                  });
+                                                });
+                                              },
+                                              style: const TextStyle(
+                                                  fontSize: 14,
+                                                  color: Colors
+                                                      .black), // Change input text size and color
+                                              decoration:
+                                              InputDecoration(
+                                                hintText: monthlyexpenses[i]
+                                                ['remarks']!
+                                                    .text
+                                                    .isEmpty
+                                                    ? 'Remarks'
+                                                    : null,
+                                                hintStyle: const TextStyle(
+                                                    fontSize: 16,
+                                                    color: Colors.black),// Change label text size and color
+                                              ),
                                             ),
                                           ),
 
-                                          /// Amount
-                                          IconButton(
-                                            icon: const Icon(Icons.note_alt_sharp,
-                                                color: Colors.green),
-                                            onPressed: () {
-                                              showDialog(
-                                                context: context,
-                                                builder: (BuildContext context) {
-                                                  return AlertDialog(
-                                                    title: const Text(
-                                                      "Notes",
-                                                      style: TextStyle(
-                                                          fontSize: 20,
-                                                          color: Colors
-                                                              .blue), // Change text size and color
-                                                    ),
-                                                    content: Container(
-                                                      width: double.maxFinite,
-                                                      child: Column(
-                                                        mainAxisAlignment:
-                                                        MainAxisAlignment.start,
-                                                        mainAxisSize:
-                                                        MainAxisSize.min,
-                                                        children: [
-                                                          Text(
-                                                            "Category: ${monthlyexpenses[i]['monthcategory']!.text}",
-                                                            style: const TextStyle(
-                                                                fontSize: 16,
-                                                                color: Colors
-                                                                    .black), // Change text size and color
-                                                          ),
-                                                          Text(
-                                                            "Amount: ${monthlyexpenses[i]['monthlyamount']!.text}",
-                                                            style: TextStyle(
-                                                                fontSize: 16,
-                                                                color: Colors
-                                                                    .black), // Change text size and color
-                                                          ),
-                                                          TextField(
-                                                            controller:
-                                                            monthlyexpenses[i]
-                                                            ['remarks'],
-                                                            style: TextStyle(
-                                                                fontSize: 14,
-                                                                color: Colors
-                                                                    .black), // Change input text size and color
-                                                            decoration:
-                                                            InputDecoration(
-                                                              labelText: "Add",
-                                                              labelStyle: TextStyle(
-                                                                  fontSize: 16,
-                                                                  color: Colors
-                                                                      .blue), // Change label text size and color
-                                                            ),
-                                                          ),
-                                                          if (notesList.isNotEmpty)
-                                                            Container(
-                                                              height: 100,
-                                                              child:
-                                                              ListView.builder(
-                                                                itemCount: notesList
-                                                                    .length,
-                                                                itemBuilder:
-                                                                    (context,
-                                                                    index) {
-                                                                  return ListTile(
-                                                                    title: Text(
-                                                                      notesList[
-                                                                      index],
-                                                                      style: TextStyle(
-                                                                          fontSize:
-                                                                          14,
-                                                                          color: Colors
-                                                                              .black), // Change list item text size and color
-                                                                    ),
-                                                                  );
-                                                                },
-                                                              ),
-                                                            ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                    actions: [
-                                                      TextButton(
-                                                        onPressed: () {
-                                                          Navigator.pop(context);
-                                                        },
-                                                        child: Text(
-                                                          "Cancel",
-                                                          style: TextStyle(
-                                                              fontSize: 16,
-                                                              color: Colors
-                                                                  .red), // Change button text size and color
-                                                        ),
-                                                      ),
-                                                      TextButton(
-                                                        onPressed: () {
-                                                          Navigator.pop(context);
-                                                          setState(() {
-                                                            ///  String category = monthlyexpenses[i]['monthcategory']!.text;
-                                                            ///  String amount = monthlyexpenses[i]['monthlyamount']!.text;
-                                                          });
-                                                        },
-                                                        child: Text(
-                                                          "OK",
-                                                          style: TextStyle(
-                                                              fontSize: 16,
-                                                              color: Colors
-                                                                  .green), // Change button text size and color
-                                                        ),
-                                                      ),
-                                                    ],
-                                                    shape: RoundedRectangleBorder(
-                                                      side: BorderSide(
-                                                          color: Color(
-                                                              0xFF8155BA)), // Set border color here
-                                                      borderRadius:
-                                                      BorderRadius.zero,
-
-                                                      // Remove border radius
-                                                    ),
-                                                  );
-                                                },
-                                              );
-                                            },
-                                          ),
-
                                           ///remarks
-
-                                          IconButton(
-                                            icon: const Icon(Icons.cancel,
-                                                color: Colors
-                                                    .red), // You can change the icon here
-                                            onPressed: () {
-                                              setState(() {
-                                                monthlyexpenses.removeAt(i);
-                                                //updatetotalspent(); // _updateTotalBudget();
-                                              });
-                                            },
-                                          ),
+                                          if (i != 0)
+                                            IconButton(
+                                              icon: const Icon(Icons.cancel,
+                                                  color: Colors
+                                                      .red), // You can change the icon here
+                                              onPressed: i == 0 ? null : (){
+                                                setState(() {
+                                                  monthlyexpenses.removeAt(i);
+                                                  //updatetotalspent(); // _updateTotalBudget();
+                                                });
+                                              },
+                                            ),
                                         ],
                                       ),
                                     ),
@@ -1412,6 +1565,9 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
                               bool isValid =
                               true; // Flag to track overall form validity
                               for (var i = 0; i < monthlyexpenses.length; i++) {
+                                double monthlyAmount = double.tryParse(monthlyexpenses[i]['monthlyamount']!.text) ?? 0.0;
+                                totalMonthlyExpenses += monthlyAmount;
+                                print("TotalMonthlyExpenses: $totalMonthlyExpenses");
                                 if (monthlyexpenses[i]['monthcategory']!
                                     .text
                                     .isEmpty) {
@@ -1424,6 +1580,12 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
                                   errorMessages[i] = "* Enter an Amount";
                                   isValid =
                                   false; // Set flag to false if any row has an error
+                                } else if (monthlyexpenses[i]['remarks']!
+                                    .text
+                                    .isEmpty) {
+                                  errorMessages[i] = "* Enter a Remarks";
+                                  isValid =
+                                  false;
                                 } else {
                                   // No error for this row
                                   errorMessages[i] = null;
@@ -1431,45 +1593,164 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
                               }
                               // Check overall form validity
                               if (isValid) {
-                                showDialog(
-                                  context: context,
-                                  builder: (BuildContext context) {
-                                    return AlertDialog(
-                                      title: Text('Saved Succesfully'),
-                                      content: Text(
-                                          ''),
-                                      actions: [
-                                        ElevatedButton(
-                                          onPressed: () {
-                                            sendDataToServer(monthlyexpenses);
-                                            Navigator.push(context, MaterialPageRoute(builder: (context)=> MonthlyBudget2(
-                                              incomeId: widget.incomeId,
-                                              fromDate: widget.fromDate,
-                                              toDate: widget.toDate,
-                                              totalIncomeAmt: widget.totalIncomeAmt,
-                                              uid: widget.uid,
-                                              // totalIncome: widget.totalIncome,
-                                              // incomeType: widget.incomeType,
-                                              // selectedFromDate: widget.selectedFromDate,
-                                              // selectedToDate: widget.selectedToDate,
+                                if(totalMonthlyExpenses<=totalRemainingAmount) {
+                                  showDialog(
+                                    context: context,
+                                    builder: (BuildContext context) {
+                                      return AlertDialog(
+                                        title: Text('Saved Succesfully'),
+                                        content: Text(
+                                            ''),
+                                        actions: [
+                                          ElevatedButton(
+                                            onPressed: () {
+                                              sendDataToServer(monthlyexpenses);
+                                              Navigator.push(context, MaterialPageRoute(builder: (context)=> MonthlyBudget2(
+                                                incomeId: widget.incomeId,
+                                                fromDate: widget.fromDate,
+                                                toDate: widget.toDate,
+                                                totalIncomeAmt: widget.totalIncomeAmt,
+                                                uid: widget.uid,
+                                                // totalIncome: widget.totalIncome,
+                                                // incomeType: widget.incomeType,
+                                                // selectedFromDate: widget.selectedFromDate,
+                                                // selectedToDate: widget.selectedToDate,
 
-                                            )));
-                                            //  _saveDataToSharedPreferences(remainingOrDebit);
-                                          },
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.green
-                                                .withOpacity(
-                                                0.8), // Change button color here
-                                            elevation: 5, // Add elevation
+                                              )));
+                                              //  _saveDataToSharedPreferences(remainingOrDebit);
+                                            },
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.green
+                                                  .withOpacity(
+                                                  0.8), // Change button color here
+                                              elevation: 5, // Add elevation
+                                            ),
+                                            child: Text('OK',
+                                                style:
+                                                TextStyle(color: Colors.black)),
                                           ),
-                                          child: Text('OK',
-                                              style:
-                                              TextStyle(color: Colors.black)),
+                                        ],
+                                      );
+                                    },
+                                  );
+                                }
+                                else{
+                                  AwesomeDialog(
+                                    context: context,
+                                    dialogType: DialogType.infoReverse,
+                                    title: 'Get Amount',
+                                    desc:
+                                    'Do you want to Get Amount from Wallet?',
+                                    btnOkText: 'Yes',
+                                    btnCancelText: 'No',
+                                    btnCancelOnPress: () {
+                                      for (var i = 0; i < monthlyexpenses.length; i++) {
+                                        TextEditingController? controller = monthlyexpenses[i]['monthlyamount'];
+                                        if (controller != null) {
+                                          controller.clear();
+                                        }
+                                      }
+                                      setState((){
+                                        totalMonthlyExpenses = 0;
+                                      });
+                                     // Navigator.of(context).pop();
+                                    },
+                                    btnOkOnPress: () {
+                                      // Show the text field when user clicks "Yes"
+                                      showDialog(
+                                        context: context,
+                                        builder: (context) => AlertDialog(
+                                          title: Text('Enter Amount'),
+                                          content: TextField(
+                                            controller: walletamountcontroller,
+                                            keyboardType:
+                                            const TextInputType
+                                                .numberWithOptions(
+                                                decimal: true),
+                                            decoration:
+                                            const InputDecoration(
+                                              labelText: 'Enter Amount',
+                                              hintText:
+                                              'Enter the amount here',
+                                              border:
+                                              OutlineInputBorder(),
+                                            ),
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () async {
+                                                amountToDeduct =
+                                                    double.tryParse(
+                                                        walletamountcontroller
+                                                            .text) ??
+                                                        0.0;
+                                                if (amountToDeduct <= walletAmount) {
+                                                  deductAmountFromWallet();
+                                                  /*if (success) {
+                                          setState(() {
+                                            walletAmount -= amountToDeduct;
+                                          });
+                                          Navigator.of(context).pop(); // Close dialog
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                                content: Text(
+                                                    'Amount deducted successfully')),
+                                          );
+                                        } else {
+                                          ScaffoldMessenger.of(
+                                              context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                                content: Text(
+                                                    'Failed to deduct amount')),
+                                          );
+                                        }*/
+                                                } else {
+                                                  ScaffoldMessenger.of(
+                                                      context)
+                                                      .showSnackBar(
+                                                    const SnackBar(
+                                                        content: Text(
+                                                            'Insufficient wallet balance')),
+                                                  );
+                                                }
+                                              },
+                                              child: Text('OK'),
+                                            ),
+                                          ],
                                         ),
-                                      ],
-                                    );
-                                  },
-                                );
+                                      );
+                                      // Perform actions when OK is pressed
+                                    },
+                                  ).show();
+                                  /*showDialog(
+                                      context: context,
+                                      builder: (BuildContext context)
+                                      {
+                                        return AlertDialog(
+                                          title: Text('Insufficient Balance'),
+                                          // content: Text('You have insufficient balance in your wallet.'),
+                                          actions: <Widget>[
+                                            TextButton(
+                                              onPressed: () {
+                                      for (var i = 0; i < monthlyexpenses.length; i++) {
+                                        TextEditingController? controller = monthlyexpenses[i]['monthlyamount'];
+                                        if (controller != null) {
+                                          controller.clear();
+                                        }
+                                      }
+                                      setState((){
+                                        totalMonthlyExpenses = 0;
+                                      });
+                                                Navigator.of(context).pop();
+                                              },
+                                              child: Text('OK'),
+                                            ),
+                                          ],
+                                        );
+                                      }
+                                  );*/
+                                }
                               }
                               else {
                                 // Set error messages for each row
@@ -1500,7 +1781,7 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
                     ),
                   ],
                 ),
-              ),
+              ) : Text("NO BALANCE", style: TextStyle(fontSize: 20, color: Colors.red)),
 
               /*Padding(
                 padding: const EdgeInsets.all(8.0),
@@ -1577,317 +1858,362 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
                   ],
                 ),
               ),*/
-              Container(
-                  child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Table(
-                          border: TableBorder.all(),
-                          defaultColumnWidth:const FixedColumnWidth(90.0),
-                          columnWidths: const <int, TableColumnWidth>{
-                            0:FixedColumnWidth(50),
-                            1:FixedColumnWidth(100),
-                            2:FixedColumnWidth(70),
-                            4:FixedColumnWidth(50),
-                            5:FixedColumnWidth(50),
-                          },
-                          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                          // s.no
-                          children: [TableRow(children:[
-                            TableCell(child:  Center(child: Text('Date', style: TextStyle(fontSize: 16, color: Colors.black)),),),
-                            //Name
-                            TableCell(child:Center(child: Text('Category',style: TextStyle(fontSize: 16, color: Colors.black)),)),
-                            // company name
+              SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Table(
+                      border: TableBorder.all(),
+                      defaultColumnWidth:const FixedColumnWidth(90.0),
+                      columnWidths: const <int, TableColumnWidth>{
+                        0:FixedColumnWidth(50),
+                        1:FixedColumnWidth(100),
+                        2:FixedColumnWidth(70),
+                        4:FixedColumnWidth(50),
+                        5:FixedColumnWidth(50),
+                      },
+                      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                      // s.no
+                      children: [const TableRow(children:[
+                        TableCell(child:  Center(child: Text('Date', style: TextStyle(fontSize: 16, color: Colors.black)),),),
+                        //Name
+                        TableCell(child:Center(child: Text('Category',style: TextStyle(fontSize: 16, color: Colors.black)),)),
+                        // company name
 
-                            TableCell(child:Center(child: Text('Amount',style: TextStyle(fontSize: 16, color: Colors.black)),)),
+                        TableCell(child:Center(child: Text('Amount',style: TextStyle(fontSize: 16, color: Colors.black)),)),
 
-                            TableCell(child:Center(child: Text('Remarks',style: TextStyle(fontSize: 16, color: Colors.black)),)),
-                            //Email
-                            TableCell(child:Center(child: Column(children: [SizedBox(height: 8,), Text('Delete', style: TextStyle(fontSize: 16, color: Colors.black)), SizedBox(height: 8,),],),)),
-                            // Chapter
-                            TableCell(child: Center(child: Text('Edit', style: TextStyle(fontSize: 16, color: Colors.black)),))]),
+                        TableCell(child:Center(child: Text('Remarks',style: TextStyle(fontSize: 16, color: Colors.black)),)),
+                        //Email
+                        TableCell(child: Center(child: Text('Edit', style: TextStyle(fontSize: 16, color: Colors.black)),)),
 
-                            for(var i = 0 ;i < data.length; i++) ...[
+                        TableCell(child:Center(child: Text('Delete', style: TextStyle(fontSize: 16, color: Colors.black)),)),
+                        // Chapter
+                      ]),
 
-                              TableRow(
-                                  decoration: BoxDecoration(color: Colors.grey[200]),
-                                  children:[
-                                    // 1 Table row contents
-                                    TableCell(
-                                      child: Center(
-                                        child: Column(
-                                          children: [
-                                            const SizedBox(height: 8,),
-                                            Text(data[i]['date'] != null
-                                                ? DateFormat('MMM-dd').format(DateTime.parse(data[i]['date']))
-                                                : 'No Date Available'),
-                                            const SizedBox(height: 8,),
-                                          ],
-                                        ),
-                                      ),
+                        for(var i = 0 ;i < spent_data.length; i++) ...[
+                          // if (i != 0) ...[
+                          TableRow(
+                              decoration: BoxDecoration(color: Colors.grey[200]),
+                              children:[
+                                // 1 Table row contents
+                                TableCell(
+                                  child: Center(
+                                    child: Column(
+                                      children: [
+                                        const SizedBox(height: 8,),
+                                        Text(spent_data[i]['date'] != null
+                                            ? DateFormat('MMM-dd').format(DateTime.parse(spent_data[i]['date']))
+                                            : ' '),
+                                        const SizedBox(height: 8,),
+                                      ],
                                     ),
+                                  ),
+                                ),
 
-                                    //2 name
-                                    TableCell(child: Center(child: Text('${data[i]["category"] ?? ''}',),)),
-                                    // 3 company name
-                                    TableCell(child:Center(child: Text('${data[i]["amount"]?? ''}',),)),
-                                    // 4 email
-                                    TableCell(child:Center(child: Text('${data[i]["remarks"]?? ''}',),)),
-
-                                    TableCell(child: Center(child:
+                                //2 name
+                                TableCell(child: Center(child: Text('${spent_data[i]["category"] ?? ''}',),)),
+                                // 3 company name
+                                TableCell(child:Center(child: Text('${spent_data[i]["amount"]?? ''}',),)),
+                                // 4 email
+                                TableCell(child:Center(child: Text('${spent_data[i]["remarks"]?? ''}',),)),
+                                // 5 chapter
+                                TableCell(child:Center(
+                                    child: spent_data[i]['date'] != null ?
                                     IconButton(
                                         onPressed: (){
-                                          showDialog(
-                                              context: context,
-                                              builder: (ctx) =>
-                                              // Dialog box for register meeting and add guest
-                                              AlertDialog(
-                                                backgroundColor: Colors.grey[800],
-                                                title: const Text('Delete',
-                                                    style: TextStyle(color: Colors.white)),
-                                                content: const Text("Do you want to Delete the Image?",
-                                                    style: TextStyle(color: Colors.white)),
-                                                actions: [
-                                                  TextButton(
-                                                      onPressed: () async{
-                                                        delete(data[i]['id']);
-                                                        Navigator.pop(context);
-                                                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                                                            content: Text("You have Successfully Deleted")));
-                                                      },
-                                                      child: const Text('Yes')),
-                                                  TextButton(
-                                                      onPressed: () {
-                                                        Navigator.pop(context);
-                                                      },
-                                                      child: const Text('No'))
-                                                ],
-                                              )
-                                          );
-                                        }, icon: const Icon(Icons.delete,color: Colors.red,)))),
-                                    // 5 chapter
-                                    TableCell(child:Center(
-                                        child:IconButton(
-                                            onPressed: (){
-                                              showDialog<void>(
-                                                context: context,
-                                                builder: (BuildContext dialogContext) {
-                                                  return AlertDialog(
-                                                    backgroundColor: Colors.white,
-                                                    title: const Text('Edit',),
-                                                    content:  SizedBox(width: 400,
-                                                      child: Row(
-                                                        children: [
-                                                          Expanded(
-                                                            child: TextFormField
-                                                              (
-                                                              readOnly: true,
-                                                              controller: editdate = TextEditingController(text: DateFormat('MMM-dd').format(DateTime.parse(data[i]['date']))), // Assuming expense['date'] is already a TextEditingController
-                                                              style: TextStyle(
-                                                                  fontSize: 14,
-                                                                  color: Colors.black,
-                                                                  fontWeight: FontWeight.bold),
-                                                              onTap: () async {
-                                                                // Show date picker when the field is tapped
-                                                                DateTime? pickedDate =
-                                                                await showDatePicker(
-                                                                  context: context,
-                                                                  initialDate: DateTime.now(),
-                                                                  firstDate: DateTime(2000),
-                                                                  lastDate: DateTime(2101),
-                                                                  builder: (BuildContext context,
-                                                                      Widget? child) {
-                                                                    return Theme(
-                                                                      data: ThemeData.light()
-                                                                          .copyWith(
-                                                                        colorScheme:
-                                                                        ColorScheme.light(
-                                                                          primary:
-                                                                          Color(0xFF8155BA),
-                                                                        ),
-                                                                      ),
-                                                                      child: child!,
-                                                                    );
-                                                                  },
-                                                                );
-                                                                if (pickedDate != null) {
-                                                                  setState(() {
-                                                                    editdate.text =
-                                                                        _formatDate(pickedDate);
-                                                                  });
-                                                                }
-                                                              },
-                                                              decoration: InputDecoration(
-                                                              ),
-                                                            ),
-                                                          ),
-                                                          const SizedBox(width: 16),
-                                                          Expanded(
-                                                            flex: 2,
-                                                            child:
-                                                            TypeAheadFormField<String>(
-                                                              textFieldConfiguration: TextFieldConfiguration(
-                                                                controller: editcategory = TextEditingController(text: data[i]['category']),
-                                                                onChanged: (value) {
-                                                                  setState(() {
-                                                                    errormsg = null;
-                                                                  });
-                                                                },
-                                                                /*decoration: InputDecoration(
-                                                                  hintText: monthlyexpenses.isNotEmpty && i < monthlyexpenses.length
-                                                                      ? monthlyexpenses[i]['monthcategory']!.text.isEmpty
-                                                                      ? 'Categories'
-                                                                      : null
-                                                                      : null,
-                                                                  hintStyle: const TextStyle(fontSize: 16, color: Colors.black),
-                                                                ),*/
-                                                                style: TextStyle(fontSize: 16),
-                                                              ),
-                                                              suggestionsCallback: (pattern) {
-                                                                // List of suggestions
-                                                                List<String> suggestions = [
-                                                                  // Headings
-                                                                  'Daily Expenses',
-                                                                  'Housing',
-                                                                  'Transportation',
-                                                                  'Food',
-                                                                  'Debt Payments',
-                                                                  'Insurance',
-                                                                  'Savings',
-                                                                  'Personal Expenses',
-                                                                  'Utilities',
-                                                                  'Healthcare',
-                                                                  'Education',
-                                                                  'Charity/Donations',
-                                                                  'Miscellaneous',
-                                                                  // Categories
-                                                                  'Rent/Mortgage',
-                                                                  'Utilities',
-                                                                  'Groceries',
-                                                                  'Credit Card Payments',
-                                                                  'Health Insurance',
-                                                                  'Emergency Fund',
-                                                                  'Clothing',
-                                                                  'Electricity',
-                                                                  'Doctor Visits',
-                                                                  'Tuition',
-                                                                  'Regular Donations',
-                                                                  'Other Expenses',
-                                                                ];
-                                                                return suggestions;
-                                                              },
-                                                              itemBuilder: (context, String suggestion) {
-                                                                if (
-                                                                suggestion == 'Daily Expenses' ||
-                                                                    suggestion == 'Housing' ||
-                                                                    suggestion == 'Transportation' ||
-                                                                    suggestion == 'Food' ||
-                                                                    suggestion == 'Debt Payments' ||
-                                                                    suggestion == 'Insurance' ||
-                                                                    suggestion == 'Savings' ||
-                                                                    suggestion == 'Personal Expenses' ||
-                                                                    suggestion == 'Utilities' ||
-                                                                    suggestion == 'Healthcare' ||
-                                                                    suggestion == 'Education' ||
-                                                                    suggestion == 'Charity/Donations' ||
-                                                                    suggestion == 'Miscellaneous') {
-                                                                  // If it's a heading, display it differently
-                                                                  return ListTile(
-                                                                    title: Text(
-                                                                      suggestion,
-                                                                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                          showDialog<void>(
+                                            context: context,
+                                            builder: (BuildContext dialogContext) {
+                                              return AlertDialog(
+                                                backgroundColor: Colors.white,
+                                                title: const Text('Edit',),
+                                                content:  SizedBox(width: 400,
+                                                  child: Row(
+                                                    children: [
+                                                      Expanded(
+                                                        child: TextFormField
+                                                          (
+                                                          readOnly: true,
+                                                          controller: editdate = TextEditingController(text: DateFormat('MMM-dd').format(DateTime.parse(spent_data[i]['date']))), // Assuming expense['date'] is already a TextEditingController
+                                                          style: const TextStyle(
+                                                              fontSize: 14,
+                                                              color: Colors.black,
+                                                              fontWeight: FontWeight.bold),
+                                                          onTap: () async {
+                                                            // Show date picker when the field is tapped
+                                                            DateTime? pickedDate =
+                                                            await showDatePicker(
+                                                              context: context,
+                                                              initialDate: fromdateTime,
+                                                              firstDate: fromdateTime,
+                                                              lastDate: todateTime,
+                                                              builder: (BuildContext context,
+                                                                  Widget? child) {
+                                                                return Theme(
+                                                                  data: ThemeData.light()
+                                                                      .copyWith(
+                                                                    colorScheme:
+                                                                    const ColorScheme.light(
+                                                                      primary:
+                                                                      Color(0xFF8155BA),
                                                                     ),
-                                                                  );
-                                                                } else {
-                                                                  // If it's a category, display it normally
-                                                                  return ListTile(
-                                                                    title: Text(
-                                                                      suggestion,
-                                                                      style: TextStyle(fontSize: 14),
-                                                                    ),
-                                                                  );
-                                                                }
-                                                              },
-                                                              onSuggestionSelected: (String suggestion) {
-                                                                editcategory.text = suggestion;
-                                                                editcategory.selection = TextSelection.collapsed(offset: suggestion.length);
-                                                                editcategory.value = TextEditingValue(
-                                                                  text: suggestion,
-                                                                  selection: TextSelection.collapsed(offset: suggestion.length),
+                                                                  ),
+                                                                  child: child!,
                                                                 );
                                                               },
-                                                            ),
+                                                            );
+                                                            if (pickedDate != null) {
+                                                              setState(() {
+                                                                editdate.text =
+                                                                    _formatDate(pickedDate);
+                                                              });
+                                                            }
+                                                          },
+                                                          decoration: const InputDecoration(
                                                           ),
-
-                                                          SizedBox(width: 16),
-                                                          Expanded(
-                                                            child: TextFormField(
-                                                              controller: editamount = TextEditingController(text: data[i]['amount']),
-                                                              style: const TextStyle(fontSize: 14),
-                                                              onChanged: (value) {
-                                                                setState(() {
-                                                                  //updatetotalspent();
-                                                                  // _updateTotalBudget2();
-                                                                  setState(() {
-                                                                    errormsg = null;
-                                                                  });
-                                                                });
-                                                              },
-                                                              keyboardType: TextInputType.number,
-                                                            ),
-                                                          ),
-                                                          const SizedBox(width: 16),
-                                                          Expanded(
-                                                            child: TextField(
-                                                              controller: editremarks = TextEditingController(text: data[i]['remarks']),
-                                                              style: TextStyle(
-                                                                  fontSize: 14,
-                                                                  color: Colors
-                                                                      .black), // Change input text size and color
-                                                              decoration:
-                                                              InputDecoration(
-                                                                labelText: "Add",
-                                                                labelStyle: TextStyle(
-                                                                    fontSize: 14,
-                                                                    color: Colors
-                                                                        .blue), // Change label text size and color
-                                                              ),
-                                                            ),)
-
-                                                        ],
+                                                        ),
                                                       ),
-                                                    ),
-                                                    actions: <Widget>[
-                                                      Row(
-                                                        mainAxisAlignment: MainAxisAlignment.end,
-                                                        children: [
-                                                          TextButton(
-                                                            child: const Text('Ok',),
-                                                            onPressed: () {
-                                                              editExpense(int.parse(data[i]["id"]));
-                                                              Navigator.pop(context); // Dismiss alert dialog
+                                                      const SizedBox(width: 16),
+                                                      Expanded(
+                                                        flex: 2,
+                                                        child:
+                                                        TypeAheadFormField<String>(
+                                                          textFieldConfiguration: TextFieldConfiguration(
+                                                            controller: editcategory = TextEditingController(text: spent_data[i]['category']),
+                                                            onChanged: (value) {
+                                                              setState(() {
+                                                                errormsg = null;
+                                                              });
                                                             },
+                                                            /*decoration: InputDecoration(
+                                                              hintText: monthlyexpenses.isNotEmpty && i < monthlyexpenses.length
+                                                                  ? monthlyexpenses[i]['monthcategory']!.text.isEmpty
+                                                                  ? 'Categories'
+                                                                  : null
+                                                                  : null,
+                                                              hintStyle: const TextStyle(fontSize: 16, color: Colors.black),
+                                                            ),*/
+                                                            style: TextStyle(fontSize: 16),
                                                           ),
-                                                          TextButton(
-                                                            child:  const Text('Cancel',),
-                                                            onPressed: () {
-                                                              Navigator.pop(context);
-                                                              // Navigator.of(dialogContext).pop(); // Dismiss alert dialog
-                                                            },
-                                                          ),
-                                                        ],
+                                                          suggestionsCallback: (pattern) {
+                                                            // List of suggestions
+                                                            List<String> suggestions = [
+                                                              // Headings
+                                                              'Daily Expenses',
+                                                              'Housing',
+                                                              'Transportation',
+                                                              'Food',
+                                                              'Debt Payments',
+                                                              'Insurance',
+                                                              'Savings',
+                                                              'Personal Expenses',
+                                                              'Utilities',
+                                                              'Healthcare',
+                                                              'Education',
+                                                              'Charity/Donations',
+                                                              'Miscellaneous',
+                                                              // Categories
+                                                              'Rent/Mortgage',
+                                                              'Utilities',
+                                                              'Groceries',
+                                                              'Credit Card Payments',
+                                                              'Health Insurance',
+                                                              'Emergency Fund',
+                                                              'Clothing',
+                                                              'Electricity',
+                                                              'Doctor Visits',
+                                                              'Tuition',
+                                                              'Regular Donations',
+                                                              'Other Expenses',
+                                                            ];
+                                                            return suggestions;
+                                                          },
+                                                          itemBuilder: (context, String suggestion) {
+                                                            if (
+                                                            suggestion == 'Daily Expenses' ||
+                                                                suggestion == 'Housing' ||
+                                                                suggestion == 'Transportation' ||
+                                                                suggestion == 'Food' ||
+                                                                suggestion == 'Debt Payments' ||
+                                                                suggestion == 'Insurance' ||
+                                                                suggestion == 'Savings' ||
+                                                                suggestion == 'Personal Expenses' ||
+                                                                suggestion == 'Utilities' ||
+                                                                suggestion == 'Healthcare' ||
+                                                                suggestion == 'Education' ||
+                                                                suggestion == 'Charity/Donations' ||
+                                                                suggestion == 'Miscellaneous') {
+                                                              // If it's a heading, display it differently
+                                                              return ListTile(
+                                                                title: Text(
+                                                                  suggestion,
+                                                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                                                ),
+                                                              );
+                                                            } else {
+                                                              // If it's a category, display it normally
+                                                              return ListTile(
+                                                                title: Text(
+                                                                  suggestion,
+                                                                  style: TextStyle(fontSize: 14),
+                                                                ),
+                                                              );
+                                                            }
+                                                          },
+                                                          onSuggestionSelected: (String suggestion) {
+                                                            editcategory.text = suggestion;
+                                                            editcategory.selection = TextSelection.collapsed(offset: suggestion.length);
+                                                            editcategory.value = TextEditingValue(
+                                                              text: suggestion,
+                                                              selection: TextSelection.collapsed(offset: suggestion.length),
+                                                            );
+                                                          },
+                                                        ),
                                                       ),
+
+                                                      SizedBox(width: 16),
+                                                      Expanded(
+                                                        child: TextFormField(
+                                                          controller: editamount = TextEditingController(text: spent_data[i]['amount']),
+                                                          style: const TextStyle(fontSize: 14),
+                                                          onChanged: (value) {
+                                                            setState(() {
+                                                              //updatetotalspent();
+                                                              // _updateTotalBudget2();
+                                                              setState(() {
+                                                                errormsg = null;
+                                                              });
+                                                            });
+                                                          },
+                                                          keyboardType: TextInputType.number,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 16),
+                                                      Expanded(
+                                                        child: TextField(
+                                                          controller: editremarks = TextEditingController(text: spent_data[i]['remarks']),
+                                                          style: TextStyle(
+                                                              fontSize: 14,
+                                                              color: Colors
+                                                                  .black), // Change input text size and color
+                                                          decoration:
+                                                          InputDecoration(
+                                                            labelText: "Remarks",
+                                                            labelStyle: TextStyle(
+                                                                fontSize: 14,
+                                                                color: Colors
+                                                                    .blue), // Change label text size and color
+                                                          ),
+                                                        ),)
 
                                                     ],
-                                                  );
-                                                },
+                                                  ),
+                                                ),
+                                                actions: <Widget>[
+                                                  Row(
+                                                    mainAxisAlignment: MainAxisAlignment.end,
+                                                    children: [
+                                                      TextButton(
+                                                        child: const Text('Ok',),
+                                                        onPressed: () {
+                                                          double tamount = double.parse(spent_data[i]['amount']) + totalRemainingAmount;
+                                                          double amount = double.tryParse(editamount.text) ?? 0.0;
+                                                          if (amount <= tamount) {
+                                                            editExpense(int.parse(spent_data[i]["id"]));
+                                                            Navigator.push(context, MaterialPageRoute(builder: (context) => MonthlyBudget2(
+                                                                          incomeId: widget.incomeId,
+                                                                          fromDate: widget.fromDate,
+                                                                          toDate: widget.toDate,
+                                                                          totalIncomeAmt: widget.totalIncomeAmt,
+                                                                          uid: widget.uid,
+                                                                        ))); // Dismiss alert dialog
+                                                          }
+                                                          else{
+                                                            showDialog(
+                                                                context: context,
+                                                                builder: (BuildContext context)
+                                                                {
+                                                                  return AlertDialog(
+                                                                    title: Text('Insufficient Balance'),
+                                                                    // content: Text('You have insufficient balance in your wallet.'),
+                                                                    actions: <Widget>[
+                                                                      TextButton(
+                                                                        onPressed: () {
+                                                                          editamount.clear();
+                                                                          setState((){
+                                                                            totalMonthlyExpenses = 0;
+                                                                          });
+                                                                          Navigator.of(context).pop();
+                                                                        },
+                                                                        child: Text('OK'),
+                                                                      ),
+                                                                    ],
+                                                                  );
+                                                                }
+                                                            );
+                                                          }
+
+                                                        }
+                                                      ),
+                                                      TextButton(
+                                                        child:  const Text('Cancel',),
+                                                        onPressed: () {
+                                                          Navigator.pop(context);
+                                                          // Navigator.of(dialogContext).pop(); // Dismiss alert dialog
+                                                        },
+                                                      ),
+                                                    ],
+                                                  ),
+
+                                                ],
                                               );
                                             },
-                                            icon: Icon(Icons.edit_note,color: Colors.blue,)))),
-                                  ]
-                              ),
-                            ]
-                          ]   )
-                  )
+                                          );
+                                        },
+                                        icon: Icon(Icons.edit_note,color: Colors.blue,)) :
+                                    Icon(Icons.delete,color: Colors.deepPurple.shade50)
+                                )),
+                                TableCell(child: Center(child:
+                                spent_data[i]['date'] != null ?  IconButton(
+                                    onPressed: (){
+                                      showDialog(
+                                          context: context,
+                                          builder: (ctx) =>
+                                          // Dialog box for register meeting and add guest
+                                          AlertDialog(
+                                            backgroundColor: Colors.grey[800],
+                                            title: const Text('Delete',
+                                                style: TextStyle(color: Colors.white)),
+                                            content: const Text("Do you want to Delete the Expense?",
+                                                style: TextStyle(color: Colors.white)),
+                                            actions: [
+                                              TextButton(
+                                                  onPressed: () async{
+                                                    delete(spent_data[i]['id']);
+                                                    Navigator.push(context, MaterialPageRoute(builder: (context)=> MonthlyBudget2(
+                                                      incomeId: widget.incomeId,
+                                                      fromDate: widget.fromDate,
+                                                      toDate: widget.toDate,
+                                                      totalIncomeAmt: widget.totalIncomeAmt,
+                                                      uid: widget.uid,
+                                                    )));
+                                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                                                        content: Text("You have Successfully Deleted")));
+                                                  },
+                                                  child: const Text('Yes')),
+                                              TextButton(
+                                                  onPressed: () {
+                                                    Navigator.pop(context);
+                                                  },
+                                                  child: const Text('No'))
+                                            ],
+                                          )
+                                      );
+                                    }, icon: const Icon(Icons.delete,color: Colors.red,)) :
+                                Icon(Icons.delete,color: Colors.deepPurple.shade50)
+                                )),
+                              ]
+                          ),
+                        ]
+                      ]   )
               ),
               const SizedBox(height: 30)
 

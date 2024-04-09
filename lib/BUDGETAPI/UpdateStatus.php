@@ -32,7 +32,7 @@ function updateRecord($data) {
     $status = mysqli_real_escape_string($conn, $data->status);
 
     // Update status based on incomeId, fromDate, and toDate
-    $query = "UPDATE monthly_expenses SET status = '$status' WHERE incomeId = '$incomeId' AND fromDate = '$fromDate' AND toDate = '$toDate'";
+    $query = "UPDATE monthly_credit SET status = '$status' WHERE incomeId = '$incomeId' AND fromDate = '$fromDate' AND toDate = '$toDate'";
     $result = mysqli_query($conn, $query);
 
     if ($result) {

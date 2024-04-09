@@ -654,7 +654,7 @@ class _ExpensePageState extends State<ExpensePage> {
                                 body: Column(
                                   children: [
                                     RadioListTile(
-                                      title: Text('Monthly expenses'),
+                                      title: const Text('Monthly expenses'),
                                       value: 0,
                                       groupValue: _radioValue,
                                       onChanged: (int? value) {

@@ -6,18 +6,16 @@ import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:flutter/services.dart';
 //import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 
 import 'DashBoard.dart';
 import 'MonthlyBudget2.dart';
 import 'package:http/http.dart' as http;
 import 'budgetdashboard.dart';
-import 'duplicate.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 
 class MonthlyDashboard extends StatefulWidget {
   final String uid;
-  MonthlyDashboard({Key? key, required this.uid}) : super(key: key);
+  const MonthlyDashboard({Key? key, required this.uid}) : super(key: key);
 
   @override
   _MonthlyDashboardState createState() => _MonthlyDashboardState();
@@ -108,12 +106,15 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
   }
 
   Future<void> fetchData() async {
-    final response = await http.get(Uri.parse(
-        'http://localhost/BUDGET/lib/BUDGETAPI/MonthlyDashBoard.php'));
-
+    final url = Uri.parse("http://localhost/BUDGET/lib/BUDGETAPI/MonthlyDashBoard.php");
+    final response = await http.get(url);
+    print("Dash: $url");
     if (response.statusCode == 200) {
+      print("Status: ${response.statusCode}");
+      print("Body: ${response.body}");
       setState(() {
         monthlyData = json.decode(response.body);
+
       });
     } else {
       print('Failed to load data');
@@ -859,7 +860,7 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
                                                     .textTheme
                                                     .bodySmall,
                                                 contentPadding:
-                                                    EdgeInsets.symmetric(
+                                                    const EdgeInsets.symmetric(
                                                         vertical: 10.0,
                                                         horizontal: 10.0),
                                               ),
@@ -1938,9 +1939,8 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
                   ),
                 ),
                 const SizedBox(height: 5),
-                if (monthlyData != null)
-                  for (var trip in monthlyData)
-                    buildTripContainer(context, trip),
+                for (var trip in monthlyData)
+                  buildTripContainer(context, trip),
                 ListView.builder(
                   shrinkWrap: true,
                   itemCount: trips.length,
@@ -1962,6 +1962,10 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
     DateTime currentDate = DateTime.now();
     DateTime toDate = DateTime.parse(trip['toDate'])
         .toLocal(); // Convert 'toDate' to DateTime
+    String fromdateString = trip['fromDate'];
+    DateTime fromdateTime = DateFormat('yyyy-MM-dd').parse(fromdateString);
+    String todateString = trip['toDate'];
+    DateTime todateTime = DateFormat('yyyy-MM-dd').parse(todateString);
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -2007,12 +2011,12 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
                   ),*/
                   Padding(
                     padding: const EdgeInsets.only(left: 20),
-                    child: Text('From: ${trip['fromDate']}',
+                    child: Text('From: ${DateFormat('dd-MM-yyyy').format(fromdateTime)}',
                         style: Theme.of(context).textTheme.labelMedium),
                   ),
                   Padding(
                     padding: const EdgeInsets.only(left: 20),
-                    child: Text('To: ${trip['toDate']}',
+                    child: Text('To: ${DateFormat('dd-MM-yyyy').format(todateTime)}',
                         style: Theme.of(context).textTheme.labelMedium),
                   ),
                   PopupMenuButton(
@@ -2362,7 +2366,7 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
                                                     .format(toparsedDate);
                                             var response = await http.put(
                                               Uri.parse(
-                                                  'http://localhost/BUDGET/lib/BUDGETAPI/MonthlyDashBoard.php'), // Replace with your PHP update endpoint
+                                                  'http://localhost/BUDGET/lib/BUDGETAPI/MonthlyDashBoard.php?table=monthly_dashboard'), // Replace with your PHP update endpoint
 
                                               headers: <String, String>{
                                                 'Content-Type':
@@ -2484,7 +2488,7 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
               SizedBox(
                 height: 5,
               ),
-              Row(
+              Column(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   SizedBox(
@@ -2524,7 +2528,7 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
                                 child: const Text("Close"),
                                 onPressed: () async {
                                   try {
-                                    var response = await http.put(
+                                    /*var response = await http.put(
                                       Uri.parse(
                                           'http://localhost/BUDGET/lib/BUDGETAPI/monthEndBalance.php'),
                                       headers: <String, String>{
@@ -2539,8 +2543,21 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
                                             trip['toDate'], // Include toDate
                                         'monthRemaining': trip['remaining'],
                                       }),
+                                    );*/
+                                    final response = await http.post(Uri.parse('http://localhost/BUDGET/lib/BUDGETAPI/personal_savings.php?table=personal_savings'),
+                                      headers: <String, String>{
+                                        'Content-Type':
+                                        'application/json; charset=UTF-8',
+                                      },
+                                      body: jsonEncode({
+                                        'incomeId': trip['incomeId'],
+                                        'uid': widget.uid, // Include fromDate
+                                        'amount': trip['remaining'],
+                                      }),
                                     );
                                     if (response.statusCode == 200) {
+                                      print("FromDate: ${trip['fromDate']}");
+                                      print("ToDate: ${trip['toDate']}");
                                       var statusResponse = await http.put(
                                         Uri.parse(
                                             'http://localhost/BUDGET/lib/BUDGETAPI/UpdateStatus.php'), // Replace with your PHP endpoint to update status
@@ -2550,8 +2567,7 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
                                         },
                                         body: jsonEncode({
                                           'incomeId': trip['incomeId'],
-                                          'fromDate': trip[
-                                              'fromDate'], // Include fromDate
+                                          'fromDate': trip['fromDate'], // Include fromDate
                                           'toDate': trip['toDate'],
                                           'status': 'closed',
                                         }),

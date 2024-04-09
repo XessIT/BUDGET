@@ -28,9 +28,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     // Extract data from JSON
     $uid = $data['uid'];
-    $incomeId = $data['incomeId'];
-    $remainingAmount = $data['remainingAmount'];
     $todate = $data['todate'];
+    $remainingAmount = $data['remainingAmount'];
 
     // Get the current date in the same format as sent from Dart (YYYY-MM-DD)
     $currentDate = date('Y-m-d');
@@ -40,13 +39,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $conn = connectToDatabase();
 
         // Check if data already exists for the current date
-        $sqlCheck = "SELECT * FROM wallet WHERE uid = '$uid' AND incomeId = '$incomeId' AND todate = '$todate'";
+        $sqlCheck = "SELECT * FROM wallet WHERE uid = '$uid'";
         $result = $conn->query($sqlCheck);
 
         if ($result->num_rows == 0) {
             // Insert new data into the wallet table
-            $sqlInsert = "INSERT INTO wallet (uid, incomeId, wallet, todate)
-                          VALUES ('$uid', '$incomeId', '$remainingAmount', '$todate')";
+            $sqlInsert = "INSERT INTO wallet (uid, wallet, todate)
+                          VALUES ('$uid', '$remainingAmount', '$todate')";
 
             if ($conn->query($sqlInsert) === TRUE) {
                 echo json_encode(array("message" => "Wallet amount inserted successfully"));

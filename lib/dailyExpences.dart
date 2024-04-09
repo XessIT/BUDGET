@@ -239,8 +239,7 @@ class _ExpensePageState extends State<ExpensePage> {
         String totalWallet = responseBody['total_wallet'];
         walletAmount = double.tryParse(totalWallet) ?? 0.0;
 
-        print('Total Wallet Amount: $totalWallet');
-        print("baby : $walletAmount");
+        print('Total Wallet Amount: $walletAmount');
       } else {
         print('Total wallet amount not found in the response');
       }
@@ -381,71 +380,31 @@ class _ExpensePageState extends State<ExpensePage> {
 
   ///insert wallet
 
-  Future<void> insertWallet(String uid, String incomeId, double remainingAmount,
-      String todate) async {
+  Future<bool> insertWallet(
+      String uid, double remainingAmount, String todate) async {
     try {
-      var url =
-          'http://localhost/BUDGET/lib/BUDGETAPI/walletupdate.php'; // Updated URL for insertion
-      var response = await http.post(
-        Uri.parse(url),
-        body: jsonEncode({
-          'uid': uid,
-          'incomeId': incomeId,
-          'remainingAmount': remainingAmount.toStringAsFixed(2),
-          'todate': todate,
-        }),
-        headers: {'Content-Type': 'application/json'},
-      );
-      if (response.statusCode == 200) {
-        print("uid: $uid");
-        print("incomeId: $incomeId");
-        print("remainingAmount: $remainingAmount");
-        print("todate: $todate");
-        print("URL: $url");
-        print('Wallet amount inserted successfully');
+      var currentDate = DateTime.now()
+          .toString()
+          .substring(0, 10); // Get current date in yyyy-MM-dd format
+      if (todate == currentDate) {
+        var url =
+            'http://localhost/BUDGET/lib/BUDGETAPI/wallet.php?method=updateWallet';
+        var response = await http.post(
+          Uri.parse(url),
+          body: jsonEncode({"uid": uid, "incomeId": widget.incomeId}),
+        );
+
+        if (response.statusCode == 200) {
+          print("Lending Called");
+          print("$uid");
+          print("$remainingAmount");
+          return true;
+        } else {
+          print('Failed to update wallet amount: ${response.body}');
+          return false;
+        }
       } else {
-        print('Failed to insert wallet amount: ${response.body}');
-      }
-    } catch (e) {
-      print('Error inserting wallet amount: $e');
-    }
-  }
-
-  ///wallet deduction
-
-  Future<bool> deductAmountFromWallet(
-      String uid, String incomeId, double amountToDeduct) async {
-    try {
-      if (uid.isEmpty || incomeId.isEmpty || amountToDeduct <= 0) {
-        print(
-            'Invalid data: uid, incomeId, or amountToDeduct is empty or invalid');
-        return false;
-      }
-
-      print(
-          "Request Body: uid: $uid, incomeId: $incomeId, amountToDeduct: ${amountToDeduct.toStringAsFixed(2)}");
-
-      var url = 'http://localhost/BUDGET/lib/BUDGETAPI/walletdeduction.php';
-      var response = await http.post(
-        Uri.parse(url),
-        body: {
-          'uid': '$uid',
-          'incomeId': '$incomeId',
-          'amountToDeduct': (amountToDeduct).toStringAsFixed(2),
-        },
-      );
-
-      print("Response Status Code: ${response.statusCode}");
-      print("Response Body: ${response.body}");
-
-      if (response.statusCode == 200) {
-        print("deducted amount: $amountToDeduct");
-        print("uid: $uid");
-        print("incomeId: $incomeId");
-        print(url);
-        return true;
-      } else {
-        print('Failed to update wallet amount: ${response.body}');
+        print('Not inserting wallet as todate is not equal to current date');
         return false;
       }
     } catch (e) {
@@ -454,33 +413,39 @@ class _ExpensePageState extends State<ExpensePage> {
     }
   }
 
-  Future<void> updateWallet(String uid, String incomeId, double remainingAmount,
-      String todate) async {
+  ///wallet deduction
+
+  Future<bool> deductAmountFromWallet(
+      String uid, double amountToDeduct, String reverse) async {
     try {
-      var url = 'http://localhost/BUDGET/lib/BUDGETAPI/walletupdate.php';
+      if (uid.isEmpty || reverse.isEmpty || amountToDeduct <= 0) {
+        print(
+            'Invalid data: uid, incomeId, or amountToDeduct is empty or invalid');
+        return false;
+      }
+
+      var url =
+          'http://localhost/BUDGET/lib/BUDGETAPI/wallet.php?method=borrow';
       var response = await http.post(
         Uri.parse(url),
         body: jsonEncode({
-          'uid': uid,
-          'incomeId': incomeId,
-          'remainingAmount': remainingAmount.toStringAsFixed(
-              2), // Format remainingAmount to fixed decimal places
-          'todate': todate,
+          "uid": uid,
+          "incomeId": widget.incomeId,
+          "borrowAmt": amountToDeduct.toStringAsFixed(2),
+          "reverse": reverse
         }),
-        headers: {'Content-Type': 'application/json'},
       );
+
       if (response.statusCode == 200) {
-        print("uid: $uid");
-        print("incomeId: $incomeId");
-        print("remainingAmount: $remainingAmount");
-        print("todate: $todate");
-        print("URL: $url");
-        print('Daily Wallet amount updated successfully');
+        loadDataAndCalculateExpenses();
+        return true;
       } else {
         print('Failed to update wallet amount: ${response.body}');
+        return false;
       }
     } catch (e) {
       print('Error updating wallet amount: $e');
+      return false;
     }
   }
 
@@ -498,10 +463,9 @@ class _ExpensePageState extends State<ExpensePage> {
     remainingAmount = budgetAmount - totalAmount;
     print('Remaining Amount: $remainingAmount');
 
+    await insertWallet(widget.uid, remainingAmount, widget.todate);
+
     // Update the wallet with the correct remainingAmount if totalAmount is calculated
-    if (totalAmount != 0) {
-      insertWallet(widget.uid, widget.incomeId, remainingAmount, widget.todate);
-    }
   }
 
   double _calculateTotalExpenses() {
@@ -535,6 +499,7 @@ class _ExpensePageState extends State<ExpensePage> {
   @override
   void initState() {
     super.initState();
+    //updateLendingWallet();
     readRecords(widget.incomeId);
     getwallet(widget.uid, context);
     _dateController.text = DateFormat('dd-MM-yyyy').format(_selectedDate);
@@ -556,6 +521,52 @@ class _ExpensePageState extends State<ExpensePage> {
     _categoryController.dispose();
     _amountController.dispose();
     super.dispose();
+  }
+
+  //function to show wallet amount borrow input
+  void showInput(String reverse) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Enter Amount'),
+        content: TextField(
+          controller: walletamountcontroller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            labelText: 'Enter Amount',
+            hintText: 'Enter the amount here',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              double amountToDeduct =
+                  double.tryParse(walletamountcontroller.text) ?? 0.0;
+              if (amountToDeduct <= walletAmount) {
+                bool success = await deductAmountFromWallet(
+                    widget.uid, amountToDeduct, reverse);
+                if (success) {
+                  setState(() {
+                    walletAmount -= amountToDeduct;
+                  });
+                  Navigator.of(context).pop(); // Close dialog
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Amount deducted successfully')));
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Failed to deduct amount')));
+                }
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Insufficient wallet balance')));
+              }
+            },
+            child: Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   List<Map<String, dynamic>> trips = [];
@@ -769,83 +780,11 @@ class _ExpensePageState extends State<ExpensePage> {
                                               'Do you want to reverse this amount from next month?',
                                           btnOkText: 'Yes',
                                           btnCancelText: 'No',
-                                          btnCancelOnPress: () {},
+                                          btnCancelOnPress: () {
+                                            showInput("N");
+                                          },
                                           btnOkOnPress: () {
-                                            // Show the text field when user clicks "Yes"
-                                            showDialog(
-                                              context: context,
-                                              builder: (context) => AlertDialog(
-                                                title: Text('Enter Amount'),
-                                                content: TextField(
-                                                  controller:
-                                                      walletamountcontroller,
-                                                  keyboardType:
-                                                      const TextInputType
-                                                          .numberWithOptions(
-                                                          decimal: true),
-                                                  decoration:
-                                                      const InputDecoration(
-                                                    labelText: 'Enter Amount',
-                                                    hintText:
-                                                        'Enter the amount here',
-                                                    border:
-                                                        OutlineInputBorder(),
-                                                  ),
-                                                ),
-                                                actions: [
-                                                  TextButton(
-                                                    onPressed: () async {
-                                                      double amountToDeduct =
-                                                          double.tryParse(
-                                                                  walletamountcontroller
-                                                                      .text) ??
-                                                              0.0;
-                                                      if (amountToDeduct <=
-                                                          walletAmount) {
-                                                        bool success =
-                                                            await deductAmountFromWallet(
-                                                                widget.uid,
-                                                                widget.incomeId,
-                                                                amountToDeduct);
-                                                        if (success) {
-                                                          setState(() {
-                                                            walletAmount -=
-                                                                amountToDeduct;
-                                                          });
-                                                          Navigator.of(context)
-                                                              .pop(); // Close dialog
-                                                          ScaffoldMessenger.of(
-                                                                  context)
-                                                              .showSnackBar(
-                                                            const SnackBar(
-                                                                content: Text(
-                                                                    'Amount deducted successfully')),
-                                                          );
-                                                        } else {
-                                                          ScaffoldMessenger.of(
-                                                                  context)
-                                                              .showSnackBar(
-                                                            SnackBar(
-                                                                content: Text(
-                                                                    'Failed to deduct amount')),
-                                                          );
-                                                        }
-                                                      } else {
-                                                        ScaffoldMessenger.of(
-                                                                context)
-                                                            .showSnackBar(
-                                                          const SnackBar(
-                                                              content: Text(
-                                                                  'Insufficient wallet balance')),
-                                                        );
-                                                      }
-                                                    },
-                                                    child: Text('OK'),
-                                                  ),
-                                                ],
-                                              ),
-                                            );
-                                            // Perform actions when OK is pressed
+                                            showInput("Y");
                                           },
                                         ).show();
                                       });

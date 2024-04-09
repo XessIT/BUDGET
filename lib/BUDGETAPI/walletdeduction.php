@@ -1,4 +1,5 @@
 <?php
+
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, GET, OPTIONS, PUT, DELETE");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
@@ -21,43 +22,37 @@ function connectToDatabase() {
     return $conn;
 }
 
-// Handle OPTIONS request for CORS preflight
-if ($_SERVER["REQUEST_METHOD"] === "OPTIONS") {
-    http_response_code(204);
-    exit();
+// Read Records (SELECT operation)
+function readRecords($uid) {
+    $conn = connectToDatabase();
+
+    $sql = "SELECT BORROW_AMT, LENDING_AMT, REVERSE, LOG_DATE FROM wallet_log WHERE USER_ID = '$uid'";
+    $result = $conn->query($sql);
+
+    $records = array();
+
+    if ($result->num_rows > 0) {
+        // Output data of each row
+        while ($row = $result->fetch_assoc()) {
+            $records[] = $row;
+        }
+        echo json_encode($records);
+    } else {
+        echo json_encode(array("message" => "0 results"));
+    }
+
+    $conn->close();
 }
 
 // Handle incoming HTTP requests
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    // Receive POST data using $_POST
-    $uid = $_POST['uid'] ?? '';
-    $incomeId = $_POST['incomeId'] ?? '';
-    $amountToDeduct = $_POST['amountToDeduct'] ?? '';
-
-    if (!empty($uid) && !empty($incomeId) && !empty($amountToDeduct)) {
-        $conn = connectToDatabase();
-
-        // Sanitize input data to prevent SQL injection
-        $uid = $conn->real_escape_string($uid);
-        $incomeId = $conn->real_escape_string($incomeId);
-        $amountToDeduct = $conn->real_escape_string($amountToDeduct);
-
-        // Update wallet amount
-        $sqlUpdate = "UPDATE wallet SET wallet = wallet - '$amountToDeduct' WHERE uid = '$uid' AND incomeId = '$incomeId'";
-
-        if ($conn->query($sqlUpdate) === TRUE) {
-            echo json_encode(array("message" => "Wallet amount updated successfully"));
-        } else {
-            echo json_encode(array("error" => "Error updating wallet amount: " . $conn->error));
-        }
-
-        $conn->close();
+if ($_SERVER["REQUEST_METHOD"] === "GET") {
+    if (isset($_GET['uid'])) {
+        $uid = $_GET['uid'];
+        readRecords($uid);
     } else {
-        http_response_code(400); // Bad request
-        echo json_encode(array("error" => "Incomplete data received"));
+        echo json_encode(array("error" => "IncomeId parameter is missing"));
     }
-} else {
-    http_response_code(405); // Method Not Allowed
+}  else {
     echo json_encode(array("error" => "Invalid request method"));
 }
 ?>

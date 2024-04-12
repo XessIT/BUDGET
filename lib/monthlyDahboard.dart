@@ -114,7 +114,6 @@ class _MonthlyDashboardState extends State<MonthlyDashboard> {
       print("Body: ${response.body}");
       setState(() {
         monthlyData = json.decode(response.body);
-
       });
     } else {
       print('Failed to load data');

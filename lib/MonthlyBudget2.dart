@@ -974,8 +974,8 @@ class _MonthlyBudget2State extends State<MonthlyBudget2> {
                           const Padding(
                             padding: EdgeInsets.all(8.0),
                             child: CircleAvatar(
-                              child: Icon(SimpleIcons.bitcomet, color: Colors.white),
-                              backgroundColor: Colors.blue, // Set the background color of the circle avatar
+                              backgroundColor: Colors.blue,
+                              child: Icon(SimpleIcons.bitcomet, color: Colors.white), // Set the background color of the circle avatar
                             ),
                           ),
                           SizedBox(width: 8),
